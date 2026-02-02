@@ -265,6 +265,30 @@ app.get("/admin/export", adminAuth, (c) => {
 });
 
 // ==================
+// BlindBox Metadata (Mystery Box)
+// ==================
+app.get("/blindbox/metadata/:tokenId", (c) => {
+  const tokenId = c.req.param("tokenId");
+
+  return c.json({
+    name: `Mystery Box #${tokenId}`,
+    description: "A mysterious box containing a LilStar NFT. Redeem to reveal your unique character!",
+    image: "https://static.vecteezy.com/system/resources/thumbnails/006/847/476/small/mystery-gift-box-with-cardboard-box-open-inside-with-a-question-mark-lucky-gift-or-other-surprise-in-flat-cartoon-style-illustration-vector.jpg",
+    external_url: "https://testnet-api.lilchogstars.com",
+    attributes: [
+      {
+        trait_type: "Type",
+        value: "Mystery Box"
+      },
+      {
+        trait_type: "Status",
+        value: "Unrevealed"
+      }
+    ]
+  });
+});
+
+// ==================
 // Generator endpoints
 // ==================
 let traitDb: Awaited<ReturnType<typeof loadTraitDatabase>> | null = null;
