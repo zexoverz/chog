@@ -372,7 +372,7 @@ const SBT_METADATA: Record<string, {
 	"1": {
 		name: "5% Lifetime Discount",
 		description: "This Soulbound Token grants you 5% lifetime discount on all IRL BlindBox purchases. Burn this token on our website to redeem your perk.",
-		image: "https://testnet-api.lilchogstars.com/sbt/image/discount-5.png",
+		image: "https://static4.depositphotos.com/1012407/370/v/450/depositphotos_3707681-stock-illustration-yellow-ticket.jpg",
 		attributes: [
 			{ trait_type: "Type", value: "Discount" },
 			{ trait_type: "Discount Rate", value: "5%" },
@@ -383,7 +383,7 @@ const SBT_METADATA: Record<string, {
 	"2": {
 		name: "10% Lifetime Discount",
 		description: "This Soulbound Token grants you 10% lifetime discount on all IRL BlindBox purchases. Burn this token on our website to redeem your perk.",
-		image: "https://testnet-api.lilchogstars.com/sbt/image/discount-10.png",
+		image: "https://unitedpeople.global/wp-content/uploads/2021/12/raffle-ticket-blue-600x428.jpg",
 		attributes: [
 			{ trait_type: "Type", value: "Discount" },
 			{ trait_type: "Discount Rate", value: "10%" },
@@ -394,7 +394,7 @@ const SBT_METADATA: Record<string, {
 	"3": {
 		name: "Free IRL BlindBox",
 		description: "This Soulbound Token grants you ONE free IRL BlindBox! Burn this token on our website to redeem your free box.",
-		image: "https://testnet-api.lilchogstars.com/sbt/image/free-blindbox.png",
+		image: "https://flagster.in/cdn/shop/files/ed-mystery-box-red.png?v=1704102519",
 		attributes: [
 			{ trait_type: "Type", value: "Free Item" },
 			{ trait_type: "Item", value: "IRL BlindBox" },
