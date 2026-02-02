@@ -4,6 +4,7 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
+		"start": "bun run src/index.ts",
 		"dev": "bun run --watch src/index.ts",
 		"generate": "bun run src/generator/generate.ts",
 		"generate:test": "bun run src/generator/generate.ts --skip-images",
