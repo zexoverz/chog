@@ -2,8 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'lilstar-api-testnet',
-      script: 'src/index.ts',
-      interpreter: '/root/.bun/bin/bun',
+      script: 'bun run src/index.ts',
       cwd: '/root/chog/packages/backend',
       env: {
         PORT: 3001,
