@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {BlindBox, InvalidContractSetup, ChunkAlreadyProcessed, MismatchedArrays, InitialTransferLockOn, PresaleNotOpen, InvalidSignature, InsufficientFunds, RedeemBlindBoxNotOpen, LilStarContractNotSet} from "./BlindBox.sol";
+import {BlindBox, InvalidContractSetup, ChunkAlreadyProcessed, MismatchedArrays, InitialTransferLockOn, PhaseNotOpen, InvalidSignature, InsufficientFunds, RedeemBlindBoxNotOpen, LilStarContractNotSet, ExceedsMaxPerWallet, MaxMintableSupplyReached} from "./BlindBox.sol";
 import {LilStar} from "./LilStar.sol";
 
 contract BlindBoxTest is Test {
@@ -17,14 +17,19 @@ contract BlindBoxTest is Test {
     address public bob = address(0x3);
 
     uint256 public constant MAX_SUPPLY = 6000;
-    uint256 public constant PRESALE_SUPPLY = 3756;
+    uint256 public constant MINTABLE_SUPPLY = 3756;
+
+    // Prices from mint-plan.md
+    uint64 public constant PRESALE_PRICE = 0.025 ether;   // ~$25
+    uint64 public constant STARLIST_PRICE = 0.035 ether;  // ~$35
+    uint64 public constant FCFS_PRICE = 0.040 ether;      // ~$40
 
     function setUp() public {
         offchainSigner = vm.addr(offchainSignerPk);
 
         blindBox = new BlindBox(
             MAX_SUPPLY,
-            PRESALE_SUPPLY,
+            MINTABLE_SUPPLY,
             payable(withdrawAddress)
         );
 
@@ -37,6 +42,9 @@ contract BlindBoxTest is Test {
         // Set offchain signer
         blindBox.setOffchainSigner(offchainSigner);
 
+        // Set prices
+        blindBox.setPrices(PRESALE_PRICE, STARLIST_PRICE, FCFS_PRICE);
+
         // Fund test accounts
         vm.deal(alice, 100 ether);
         vm.deal(bob, 100 ether);
@@ -48,7 +56,7 @@ contract BlindBoxTest is Test {
 
     function test_DeploymentParams() public view {
         assertEq(blindBox.MAX_SUPPLY(), MAX_SUPPLY);
-        assertEq(blindBox.TOTAL_PRESALE_AND_AUCTION_SUPPLY(), PRESALE_SUPPLY);
+        assertEq(blindBox.MINTABLE_SUPPLY(), MINTABLE_SUPPLY);
         assertEq(blindBox.WITHDRAW_ADDRESS(), withdrawAddress);
         assertEq(blindBox.owner(), owner);
     }
@@ -57,9 +65,13 @@ contract BlindBoxTest is Test {
         assertTrue(blindBox.initialTransferLockOn());
     }
 
+    function test_InitialPhaseIsClosed() public view {
+        assertEq(uint8(blindBox.currentPhase()), uint8(BlindBox.MintPhase.CLOSED));
+    }
+
     function test_RevertInvalidContractSetup() public {
         vm.expectRevert(InvalidContractSetup.selector);
-        new BlindBox(1000, 1000, payable(withdrawAddress)); // presale >= max
+        new BlindBox(1000, 1000, payable(withdrawAddress)); // mintable >= max
     }
 
     // ============
@@ -187,59 +199,161 @@ contract BlindBoxTest is Test {
     // ============
 
     function test_PresaleMint() public {
-        // Setup presale
-        uint32 startTime = uint32(block.timestamp);
-        uint32 endTime = uint32(block.timestamp + 1 hours);
-        uint64 price = 0.1 ether;
-
-        blindBox.setPresaleParams(startTime, endTime, price);
+        // Enable presale phase
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
 
         uint16 amount = 3;
         uint16 maxAllowed = 5;
-        bytes memory signature = _signPresale(alice, amount, maxAllowed);
+        bytes memory signature = _signMint(alice, maxAllowed, "PRESALE");
 
         vm.prank(alice);
-        blindBox.presaleMint{value: price * amount}(amount, maxAllowed, signature);
+        blindBox.presaleMint{value: PRESALE_PRICE * amount}(amount, maxAllowed, signature);
 
         assertEq(blindBox.balanceOf(alice), amount);
+        assertEq(blindBox.mintedInPresale(alice), amount);
     }
 
-    function test_RevertPresaleNotOpen() public {
-        // Presale not configured
-        bytes memory signature = _signPresale(alice, 1, 5);
+    function test_RevertPresalePhaseNotOpen() public {
+        // Phase is CLOSED by default
+        bytes memory signature = _signMint(alice, 5, "PRESALE");
 
         vm.prank(alice);
-        vm.expectRevert(PresaleNotOpen.selector);
-        blindBox.presaleMint{value: 0.1 ether}(1, 5, signature);
+        vm.expectRevert(PhaseNotOpen.selector);
+        blindBox.presaleMint{value: PRESALE_PRICE}(1, 5, signature);
     }
 
     function test_RevertPresaleInvalidSignature() public {
-        uint32 startTime = uint32(block.timestamp);
-        uint32 endTime = uint32(block.timestamp + 1 hours);
-        uint64 price = 0.1 ether;
-
-        blindBox.setPresaleParams(startTime, endTime, price);
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
 
         // Sign for wrong address
-        bytes memory signature = _signPresale(bob, 1, 5);
+        bytes memory signature = _signMint(bob, 5, "PRESALE");
 
         vm.prank(alice);
         vm.expectRevert(InvalidSignature.selector);
-        blindBox.presaleMint{value: price}(1, 5, signature);
+        blindBox.presaleMint{value: PRESALE_PRICE}(1, 5, signature);
     }
 
     function test_RevertPresaleInsufficientFunds() public {
-        uint32 startTime = uint32(block.timestamp);
-        uint32 endTime = uint32(block.timestamp + 1 hours);
-        uint64 price = 0.1 ether;
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
 
-        blindBox.setPresaleParams(startTime, endTime, price);
-
-        bytes memory signature = _signPresale(alice, 3, 5);
+        bytes memory signature = _signMint(alice, 5, "PRESALE");
 
         vm.prank(alice);
         vm.expectRevert(InsufficientFunds.selector);
-        blindBox.presaleMint{value: price}(3, 5, signature); // Only paid for 1
+        blindBox.presaleMint{value: PRESALE_PRICE}(3, 5, signature); // Only paid for 1
+    }
+
+    function test_RevertPresaleExceedsMaxPerWallet() public {
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
+
+        // maxPerWalletPresale is 5 by default
+        bytes memory signature = _signMint(alice, 10, "PRESALE");
+
+        vm.prank(alice);
+        vm.expectRevert(ExceedsMaxPerWallet.selector);
+        blindBox.presaleMint{value: PRESALE_PRICE * 6}(6, 10, signature);
+    }
+
+    // ============
+    // Starlist Mint
+    // ============
+
+    function test_StarlistMint() public {
+        blindBox.setPhase(BlindBox.MintPhase.STARLIST);
+
+        uint16 amount = 2;
+        uint16 maxAllowed = 3;
+        bytes memory signature = _signMint(alice, maxAllowed, "STARLIST");
+
+        vm.prank(alice);
+        blindBox.starlistMint{value: STARLIST_PRICE * amount}(amount, maxAllowed, signature);
+
+        assertEq(blindBox.balanceOf(alice), amount);
+        assertEq(blindBox.mintedInStarlist(alice), amount);
+    }
+
+    function test_RevertStarlistPhaseNotOpen() public {
+        // Phase is CLOSED
+        bytes memory signature = _signMint(alice, 3, "STARLIST");
+
+        vm.prank(alice);
+        vm.expectRevert(PhaseNotOpen.selector);
+        blindBox.starlistMint{value: STARLIST_PRICE}(1, 3, signature);
+    }
+
+    function test_RevertStarlistWrongPhase() public {
+        // Set to PRESALE instead of STARLIST
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
+
+        bytes memory signature = _signMint(alice, 3, "STARLIST");
+
+        vm.prank(alice);
+        vm.expectRevert(PhaseNotOpen.selector);
+        blindBox.starlistMint{value: STARLIST_PRICE}(1, 3, signature);
+    }
+
+    // ============
+    // FCFS Mint
+    // ============
+
+    function test_FcfsMint() public {
+        blindBox.setPhase(BlindBox.MintPhase.FCFS);
+
+        uint16 amount = 2;
+
+        vm.prank(alice);
+        blindBox.fcfsMint{value: FCFS_PRICE * amount}(amount);
+
+        assertEq(blindBox.balanceOf(alice), amount);
+        assertEq(blindBox.mintedInFcfs(alice), amount);
+    }
+
+    function test_RevertFcfsPhaseNotOpen() public {
+        vm.prank(alice);
+        vm.expectRevert(PhaseNotOpen.selector);
+        blindBox.fcfsMint{value: FCFS_PRICE}(1);
+    }
+
+    function test_RevertFcfsExceedsMaxPerWallet() public {
+        blindBox.setPhase(BlindBox.MintPhase.FCFS);
+
+        // maxPerWalletFcfs is 2 by default
+        vm.prank(alice);
+        vm.expectRevert(ExceedsMaxPerWallet.selector);
+        blindBox.fcfsMint{value: FCFS_PRICE * 3}(3);
+    }
+
+    function test_RevertFcfsInsufficientFunds() public {
+        blindBox.setPhase(BlindBox.MintPhase.FCFS);
+
+        vm.prank(alice);
+        vm.expectRevert(InsufficientFunds.selector);
+        blindBox.fcfsMint{value: FCFS_PRICE}(2); // Only paid for 1
+    }
+
+    // ============
+    // Phase Transitions
+    // ============
+
+    function test_PhaseTransitions() public {
+        // Start CLOSED
+        assertEq(uint8(blindBox.currentPhase()), 0);
+
+        // Move to PRESALE
+        blindBox.setPhase(BlindBox.MintPhase.PRESALE);
+        assertEq(uint8(blindBox.currentPhase()), 1);
+
+        // Move to STARLIST
+        blindBox.setPhase(BlindBox.MintPhase.STARLIST);
+        assertEq(uint8(blindBox.currentPhase()), 2);
+
+        // Move to FCFS
+        blindBox.setPhase(BlindBox.MintPhase.FCFS);
+        assertEq(uint8(blindBox.currentPhase()), 3);
+
+        // Back to CLOSED
+        blindBox.setPhase(BlindBox.MintPhase.CLOSED);
+        assertEq(uint8(blindBox.currentPhase()), 0);
     }
 
     // ============
@@ -290,7 +404,7 @@ contract BlindBoxTest is Test {
     }
 
     function test_RevertRedeemLilStarContractNotSet() public {
-        BlindBox newBlindBox = new BlindBox(MAX_SUPPLY, PRESALE_SUPPLY, payable(withdrawAddress));
+        BlindBox newBlindBox = new BlindBox(MAX_SUPPLY, MINTABLE_SUPPLY, payable(withdrawAddress));
 
         vm.expectRevert(LilStarContractNotSet.selector);
         newBlindBox.openRedeemBlindBoxState();
@@ -302,21 +416,16 @@ contract BlindBoxTest is Test {
 
     function test_Withdraw() public {
         // Setup and do a mint to get funds
-        uint32 startTime = uint32(block.timestamp);
-        uint32 endTime = uint32(block.timestamp + 1 hours);
-        uint64 price = 1 ether;
-
-        blindBox.setPresaleParams(startTime, endTime, price);
-        bytes memory signature = _signPresale(alice, 1, 5);
+        blindBox.setPhase(BlindBox.MintPhase.FCFS);
 
         vm.prank(alice);
-        blindBox.presaleMint{value: price}(1, 5, signature);
+        blindBox.fcfsMint{value: FCFS_PRICE * 2}(2);
 
         uint256 balanceBefore = withdrawAddress.balance;
         blindBox.withdraw();
         uint256 balanceAfter = withdrawAddress.balance;
 
-        assertEq(balanceAfter - balanceBefore, price);
+        assertEq(balanceAfter - balanceBefore, FCFS_PRICE * 2);
     }
 
     // ============
@@ -324,7 +433,7 @@ contract BlindBoxTest is Test {
     // ============
 
     function test_SetBaseURI() public {
-        string memory baseURI = "https://api.lilstar.com/blindbox/";
+        string memory baseURI = "https://api.lilstar.com/blindbox/metadata/";
         blindBox.setBaseURI(baseURI);
 
         address[] memory recipients = new address[](1);
@@ -355,15 +464,35 @@ contract BlindBoxTest is Test {
     }
 
     // ============
+    // Admin Functions
+    // ============
+
+    function test_SetPrices() public {
+        blindBox.setPrices(0.1 ether, 0.2 ether, 0.3 ether);
+
+        assertEq(blindBox.presalePrice(), 0.1 ether);
+        assertEq(blindBox.starlistPrice(), 0.2 ether);
+        assertEq(blindBox.fcfsPrice(), 0.3 ether);
+    }
+
+    function test_SetMaxPerWallet() public {
+        blindBox.setMaxPerWallet(10, 5, 3);
+
+        assertEq(blindBox.maxPerWalletPresale(), 10);
+        assertEq(blindBox.maxPerWalletStarlist(), 5);
+        assertEq(blindBox.maxPerWalletFcfs(), 3);
+    }
+
+    // ============
     // Helpers
     // ============
 
-    function _signPresale(
+    function _signMint(
         address minter,
-        uint16 amount,
-        uint16 maxAllowed
+        uint16 maxAllowed,
+        string memory phase
     ) internal view returns (bytes memory) {
-        bytes32 hash = keccak256(abi.encodePacked(amount, minter, maxAllowed));
+        bytes32 hash = keccak256(abi.encodePacked(minter, maxAllowed, phase));
         bytes32 ethSignedHash = keccak256(
             abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)
         );

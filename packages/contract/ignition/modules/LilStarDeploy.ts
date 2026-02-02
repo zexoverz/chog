@@ -3,22 +3,31 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 /**
  * Full deployment module for LilStar NFT system
  *
- * Deploys both BlindBox and LilStar contracts and links them together.
+ * Deploys all three contracts and links them together:
+ * - BlindBox: The mintable mystery box NFT (ERC-721A)
+ * - LilStar: The revealed NFT (ERC-721)
+ * - LilStarSBT: Soulbound utility tokens (ERC-1155)
  *
  * After deployment, you need to:
- * 1. Set offchain signer on BlindBox: blindBox.setOffchainSigner(signerAddress)
- * 2. Set base URIs: blindBox.setBaseURI(...), lilStar.setBaseURI(...)
- * 3. Set presale/auction params when ready
- * 4. Open redemption when ready: blindBox.openRedeemBlindBoxState(), lilStar.setRedeemBlindBoxState(true)
+ * 1. Set offchain signer: blindBox.setOffchainSigner(signerAddress)
+ * 2. Set prices: blindBox.setPrices(presalePrice, starlistPrice, fcfsPrice)
+ * 3. Set base URIs:
+ *    - blindBox.setBaseURI("https://api.lilchogstars.com/blindbox/metadata/")
+ *    - lilStar.setBaseURI("https://api.lilchogstars.com/lilstar/metadata/")
+ *    - lilStarSBT.setURI("https://api.lilchogstars.com/sbt/metadata/")
+ * 4. Set phase: blindBox.setPhase(1) for PRESALE, 2 for STARLIST, 3 for FCFS
+ * 5. Open redemption when ready:
+ *    - blindBox.openRedeemBlindBoxState()
+ *    - lilStar.setRedeemBlindBoxState(true)
  */
 export default buildModule("LilStarDeployModule", (m) => {
   // ============
   // Parameters
   // ============
 
-  // BlindBox params
+  // BlindBox params (matching mint-plan.md)
   const maxSupply = m.getParameter("maxSupply", 6000n);
-  const totalPresaleAndAuctionSupply = m.getParameter("totalPresaleAndAuctionSupply", 3756n);
+  const mintableSupply = m.getParameter("mintableSupply", 3756n); // Excludes reserved
   const withdrawAddress = m.getParameter<string>("withdrawAddress");
 
   // LilStar params
@@ -29,29 +38,38 @@ export default buildModule("LilStarDeployModule", (m) => {
   // Deploy Contracts
   // ============
 
-  // Deploy BlindBox (the mintable blind box NFT)
+  // 1. Deploy BlindBox (the mintable mystery box NFT)
   const blindBox = m.contract("BlindBox", [
     maxSupply,
-    totalPresaleAndAuctionSupply,
+    mintableSupply,
     withdrawAddress,
   ]);
 
-  // Deploy LilStar (the revealed NFT)
+  // 2. Deploy LilStar (the revealed NFT)
   const lilStar = m.contract("LilStar", [
     lilStarName,
     lilStarSymbol,
     maxSupply, // Same max supply as BlindBox
   ]);
 
+  // 3. Deploy LilStarSBT (soulbound utility tokens)
+  const lilStarSBT = m.contract("LilStarSBT", []);
+
   // ============
   // Link Contracts
   // ============
 
-  // Set LilStar contract address on BlindBox (for redemption)
+  // BlindBox -> LilStar (for redemption)
   m.call(blindBox, "setLilStarContract", [lilStar]);
 
-  // Set BlindBox contract address on LilStar (to verify redeemer)
+  // LilStar -> BlindBox (to verify redeemer)
   m.call(lilStar, "setBlindBoxAddress", [blindBox]);
 
-  return { blindBox, lilStar };
+  // LilStar -> SBT (to mint SBTs during reveal)
+  m.call(lilStar, "setSBTContract", [lilStarSBT]);
+
+  // SBT -> LilStar (to authorize minting)
+  m.call(lilStarSBT, "setLilStarContract", [lilStar]);
+
+  return { blindBox, lilStar, lilStarSBT };
 });

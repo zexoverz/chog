@@ -280,7 +280,7 @@ app.get("/blindbox/metadata/:tokenId", (c) => {
 			"A mysterious box containing a LilStar NFT. Redeem to reveal your unique character!",
 		image:
 			"https://static.vecteezy.com/system/resources/thumbnails/006/847/476/small/mystery-gift-box-with-cardboard-box-open-inside-with-a-question-mark-lucky-gift-or-other-surprise-in-flat-cartoon-style-illustration-vector.jpg",
-		external_url: "https://testnet-api.lilchogstars.com",
+		external_url: "https://lilchogstars.com",
 		attributes: [
 			{
 				trait_type: "Type",
@@ -291,6 +291,133 @@ app.get("/blindbox/metadata/:tokenId", (c) => {
 				value: "Unrevealed",
 			},
 		],
+	});
+});
+
+// ==================
+// LilStar Metadata (Revealed NFT)
+// ==================
+app.get("/lilstar/metadata/:tokenId", async (c) => {
+	const tokenId = c.req.param("tokenId");
+
+	// TODO: In production, fetch actual traits from database/chain
+	// For now, generate deterministic traits based on tokenId as seed
+	const seed = Number(tokenId);
+
+	const db = await getTraitDb();
+	const rng = new SeededRandom(seed);
+
+	// Determine character and rarity based on seed
+	const characters = COLLECTION_CONFIG.characters;
+	const character = characters[seed % characters.length] as CharacterType;
+	const rarity: Rarity = seed % 100 < 5 ? "legendary" : "common"; // 5% legendary
+
+	const selection = selectTraitsForNFT(db, character, rarity, rng);
+
+	const attributes = [];
+	attributes.push({ trait_type: "Character", value: character });
+	attributes.push({ trait_type: "Rarity", value: rarity });
+
+	for (const [layer, trait] of selection.traits) {
+		if (trait) {
+			attributes.push({ trait_type: layer, value: trait.name });
+		}
+	}
+
+	return c.json({
+		name: `LilStar #${tokenId}`,
+		description: `A unique LilStar character. ${rarity === "legendary" ? "This is a LEGENDARY edition!" : ""}`,
+		image: `https://testnet-api.lilchogstars.com/lilstar/image/${tokenId}`,
+		external_url: "https://lilchogstars.com",
+		attributes,
+	});
+});
+
+// Generate LilStar image on-the-fly
+app.get("/lilstar/image/:tokenId", async (c) => {
+	const tokenId = Number(c.req.param("tokenId"));
+	const seed = tokenId;
+
+	const db = await getTraitDb();
+	const rng = new SeededRandom(seed);
+
+	const characters = COLLECTION_CONFIG.characters;
+	const character = characters[seed % characters.length] as CharacterType;
+	const rarity: Rarity = seed % 100 < 5 ? "legendary" : "common";
+
+	const selection = selectTraitsForNFT(db, character, rarity, rng);
+
+	try {
+		const imageBuffer = await generatePreview(selection);
+
+		c.header("Content-Type", "image/png");
+		c.header("Cache-Control", "public, max-age=31536000");
+
+		return c.body(imageBuffer);
+	} catch (err) {
+		console.error(`Failed to generate LilStar image for token ${tokenId}:`, err);
+		return c.json({ error: "Failed to generate image" }, 500);
+	}
+});
+
+// ==================
+// SBT Metadata (Soulbound Utility Tokens)
+// ==================
+const SBT_METADATA: Record<string, {
+	name: string;
+	description: string;
+	image: string;
+	attributes: Array<{ trait_type: string; value: string }>;
+}> = {
+	"1": {
+		name: "5% Lifetime Discount",
+		description: "This Soulbound Token grants you 5% lifetime discount on all IRL BlindBox purchases. Burn this token on our website to redeem your perk.",
+		image: "https://testnet-api.lilchogstars.com/sbt/image/discount-5.png",
+		attributes: [
+			{ trait_type: "Type", value: "Discount" },
+			{ trait_type: "Discount Rate", value: "5%" },
+			{ trait_type: "Duration", value: "Lifetime" },
+			{ trait_type: "Redeemable", value: "Yes" },
+		],
+	},
+	"2": {
+		name: "10% Lifetime Discount",
+		description: "This Soulbound Token grants you 10% lifetime discount on all IRL BlindBox purchases. Burn this token on our website to redeem your perk.",
+		image: "https://testnet-api.lilchogstars.com/sbt/image/discount-10.png",
+		attributes: [
+			{ trait_type: "Type", value: "Discount" },
+			{ trait_type: "Discount Rate", value: "10%" },
+			{ trait_type: "Duration", value: "Lifetime" },
+			{ trait_type: "Redeemable", value: "Yes" },
+		],
+	},
+	"3": {
+		name: "Free IRL BlindBox",
+		description: "This Soulbound Token grants you ONE free IRL BlindBox! Burn this token on our website to redeem your free box.",
+		image: "https://testnet-api.lilchogstars.com/sbt/image/free-blindbox.png",
+		attributes: [
+			{ trait_type: "Type", value: "Free Item" },
+			{ trait_type: "Item", value: "IRL BlindBox" },
+			{ trait_type: "Quantity", value: "1" },
+			{ trait_type: "Redeemable", value: "Yes" },
+		],
+	},
+};
+
+app.get("/sbt/metadata/:tokenId", (c) => {
+	const tokenId = c.req.param("tokenId");
+
+	const metadata = SBT_METADATA[tokenId];
+	if (!metadata) {
+		return c.json({ error: "Invalid SBT token ID. Valid IDs: 1, 2, 3" }, 404);
+	}
+
+	return c.json({
+		name: metadata.name,
+		description: metadata.description,
+		image: metadata.image,
+		external_url: "https://lilchogstars.com/redeem",
+		attributes: metadata.attributes,
 	});
 });
 

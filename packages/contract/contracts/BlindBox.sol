@@ -2,21 +2,16 @@
 pragma solidity ^0.8.18;
 
 import "erc721a/contracts/ERC721A.sol";
-
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {BitMaps} from "@openzeppelin/contracts/utils/structs/BitMaps.sol";
 import "closedsea/src/OperatorFilterer.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-error InvalidPresaleSetup();
-error InvalidAuctionSetup();
 error ChunkAlreadyProcessed();
 error MismatchedArrays();
-error AuctionMintNotOpen();
-error MaxPresaleOrAuctionMintSupplyReached();
+error MaxMintableSupplyReached();
 error RedeemBlindBoxNotOpen();
 error LilStarContractNotSet();
 error ForceRedeemBlindBoxOwnerMismatch();
@@ -24,14 +19,11 @@ error RegistryNotSet();
 error NotAllowedByRegistry();
 error WithdrawFailed();
 error InitialTransferLockOn();
-error MaxAuctionMintForAddress();
 error InsufficientFunds();
-error RefundFailed();
 error InvalidSignature();
 error OverMaxSupply();
-error AllowlistMintNotOpen();
-error PresaleNotOpen();
-error MintingTooMuchInPresale();
+error PhaseNotOpen();
+error ExceedsMaxPerWallet();
 error InvalidContractSetup();
 
 interface ILilStarRedeemer {
@@ -44,84 +36,238 @@ interface IRegistry {
     function isAllowedOperator(address operator) external view returns (bool);
 }
 
+/**
+ * @title BlindBox
+ * @notice Mystery box NFT that can be redeemed for LilStar NFTs
+ *
+ * Mint Phases (from mint-plan.md):
+ * - Presale: $25 (1,800 reserved, signature required)
+ * - Starlist (WL): $35 (signature required)
+ * - FCFS (Public): $40 (open to all)
+ */
 contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
     using EnumerableSet for EnumerableSet.UintSet;
-    using BitMaps for BitMaps.BitMap;
 
     event AirdroppedChunk(uint256 indexed chunkNum);
-    event PresaleMint(address indexed minter, uint16 indexed amount);
+    event Minted(address indexed minter, uint8 phase, uint16 amount);
 
-    // The set of chunks processed for the airdrop.
-    // Intent is to help prevent double processing of chunks.
+    // Airdrop chunk tracking
     EnumerableSet.UintSet private _processedChunksForAirdrop;
 
+    // Transfer controls
     bool public operatorFilteringEnabled = true;
     bool public initialTransferLockOn = true;
     bool public isRegistryActive = false;
     address public registryAddress;
 
-    uint256 public immutable TOTAL_PRESALE_AND_AUCTION_SUPPLY;
-    uint16 public totalPresaleAndAuctionMinted;
+    // Supply tracking
+    uint256 public immutable MAX_SUPPLY;
+    uint256 public immutable MINTABLE_SUPPLY; // 3,756 per plan
+    uint16 public totalMintableMinted;
 
-    struct PresaleInfo {
-        uint32 presaleStartTime;
-        uint32 presaleEndTime;
-        uint64 presalePrice;
-    }
-    PresaleInfo public presaleInfo;
-    mapping(address => uint256) public numMintedInPresale;
+    // Mint phases: 0=Closed, 1=Presale, 2=Starlist, 3=FCFS
+    enum MintPhase { CLOSED, PRESALE, STARLIST, FCFS }
+    MintPhase public currentPhase;
 
-    struct AuctionInfo {
-        uint32 auctionSaleStartTime;
-        uint64 auctionStartPrice;
-        uint64 auctionEndPrice;
-        uint32 auctionPriceCurveLength;
-        uint32 auctionDropInterval;
-    }
-    AuctionInfo public auctionInfo;
+    // Prices (set in wei, e.g., for MON or ETH)
+    uint64 public presalePrice;    // $25
+    uint64 public starlistPrice;   // $35
+    uint64 public fcfsPrice;       // $40
 
+    // Max per wallet limits
+    uint16 public maxPerWalletPresale = 5;
+    uint16 public maxPerWalletStarlist = 3;
+    uint16 public maxPerWalletFcfs = 2;
+
+    // Track mints per wallet per phase
+    mapping(address => uint16) public mintedInPresale;
+    mapping(address => uint16) public mintedInStarlist;
+    mapping(address => uint16) public mintedInFcfs;
+
+    // Signature verification
     address private _offchainSigner;
 
+    // Redeem to LilStar
     struct RedeemInfo {
         bool redeemBlindBoxOpen;
         address lilStarContract;
     }
     RedeemInfo public redeemInfo;
 
-    mapping(address => uint256) public allowlistMintsAlloc;
-    uint256 public allowlistMintPrice;
-
-    uint256 public immutable MAX_SUPPLY;
-
     string private _baseTokenURI;
-
     address payable public immutable WITHDRAW_ADDRESS;
-
     uint256 public constant MINT_BATCH_SIZE = 10;
 
     constructor(
         uint256 _maxSupply,
-        uint256 _totalPresaleAndAuctionSupply,
+        uint256 _mintableSupply,
         address payable _withdrawAddress
     ) ERC721A("BlindBox", "BBOX") Ownable(msg.sender) {
         MAX_SUPPLY = _maxSupply;
-        TOTAL_PRESALE_AND_AUCTION_SUPPLY = _totalPresaleAndAuctionSupply;
+        MINTABLE_SUPPLY = _mintableSupply;
         WITHDRAW_ADDRESS = _withdrawAddress;
 
-        if (TOTAL_PRESALE_AND_AUCTION_SUPPLY >= MAX_SUPPLY)
+        if (_mintableSupply >= _maxSupply)
             revert InvalidContractSetup();
 
         _registerForOperatorFiltering();
         operatorFilteringEnabled = true;
     }
 
-    // ---------------------------
-    // Airdrop and privileged mint
-    // ---------------------------
+    // ==================
+    // Mint Functions
+    // ==================
 
-    // Thin wrapper around privilegedMint which does chunkNum checks to reduce chance of double processing chunks in a manual airdrop.
+    /**
+     * @notice Presale mint for whitelisted addresses ($25)
+     * @param amount Number of NFTs to mint
+     * @param maxAllowed Max allocation for this address (verified via signature)
+     * @param signature Backend signature proving eligibility
+     */
+    function presaleMint(
+        uint16 amount,
+        uint16 maxAllowed,
+        bytes calldata signature
+    ) external payable {
+        if (currentPhase != MintPhase.PRESALE) revert PhaseNotOpen();
+
+        uint16 alreadyMinted = mintedInPresale[msg.sender];
+        if (alreadyMinted + amount > maxAllowed) revert ExceedsMaxPerWallet();
+        if (alreadyMinted + amount > maxPerWalletPresale) revert ExceedsMaxPerWallet();
+
+        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
+            revert MaxMintableSupplyReached();
+        if (_totalMinted() + amount > MAX_SUPPLY)
+            revert OverMaxSupply();
+
+        if (!_verifySignature(msg.sender, maxAllowed, "PRESALE", signature))
+            revert InvalidSignature();
+
+        uint256 totalCost = uint256(presalePrice) * amount;
+        if (msg.value < totalCost) revert InsufficientFunds();
+
+        mintedInPresale[msg.sender] = alreadyMinted + amount;
+        totalMintableMinted += amount;
+
+        _mint(msg.sender, amount);
+        emit Minted(msg.sender, uint8(MintPhase.PRESALE), amount);
+    }
+
+    /**
+     * @notice Starlist (whitelist) mint ($35)
+     * @param amount Number of NFTs to mint
+     * @param maxAllowed Max allocation for this address
+     * @param signature Backend signature proving eligibility
+     */
+    function starlistMint(
+        uint16 amount,
+        uint16 maxAllowed,
+        bytes calldata signature
+    ) external payable {
+        if (currentPhase != MintPhase.STARLIST) revert PhaseNotOpen();
+
+        uint16 alreadyMinted = mintedInStarlist[msg.sender];
+        if (alreadyMinted + amount > maxAllowed) revert ExceedsMaxPerWallet();
+        if (alreadyMinted + amount > maxPerWalletStarlist) revert ExceedsMaxPerWallet();
+
+        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
+            revert MaxMintableSupplyReached();
+        if (_totalMinted() + amount > MAX_SUPPLY)
+            revert OverMaxSupply();
+
+        if (!_verifySignature(msg.sender, maxAllowed, "STARLIST", signature))
+            revert InvalidSignature();
+
+        uint256 totalCost = uint256(starlistPrice) * amount;
+        if (msg.value < totalCost) revert InsufficientFunds();
+
+        mintedInStarlist[msg.sender] = alreadyMinted + amount;
+        totalMintableMinted += amount;
+
+        _mint(msg.sender, amount);
+        emit Minted(msg.sender, uint8(MintPhase.STARLIST), amount);
+    }
+
+    /**
+     * @notice FCFS public mint ($40)
+     * @param amount Number of NFTs to mint
+     */
+    function fcfsMint(uint16 amount) external payable {
+        if (currentPhase != MintPhase.FCFS) revert PhaseNotOpen();
+
+        uint16 alreadyMinted = mintedInFcfs[msg.sender];
+        if (alreadyMinted + amount > maxPerWalletFcfs) revert ExceedsMaxPerWallet();
+
+        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
+            revert MaxMintableSupplyReached();
+        if (_totalMinted() + amount > MAX_SUPPLY)
+            revert OverMaxSupply();
+
+        uint256 totalCost = uint256(fcfsPrice) * amount;
+        if (msg.value < totalCost) revert InsufficientFunds();
+
+        mintedInFcfs[msg.sender] = alreadyMinted + amount;
+        totalMintableMinted += amount;
+
+        _mint(msg.sender, amount);
+        emit Minted(msg.sender, uint8(MintPhase.FCFS), amount);
+    }
+
+    /**
+     * @notice Verify signature from backend
+     */
+    function _verifySignature(
+        address minter,
+        uint16 maxAllowed,
+        string memory phase,
+        bytes memory signature
+    ) private view returns (bool) {
+        bytes32 hashVal = keccak256(
+            abi.encodePacked(minter, maxAllowed, phase)
+        );
+        bytes32 signedHash = hashVal.toEthSignedMessageHash();
+        address signingAddress = signedHash.recover(signature);
+        return signingAddress == _offchainSigner;
+    }
+
+    // ==================
+    // Admin: Phase Control
+    // ==================
+
+    function setPhase(MintPhase _phase) external onlyOwner {
+        currentPhase = _phase;
+    }
+
+    function setPrices(
+        uint64 _presalePrice,
+        uint64 _starlistPrice,
+        uint64 _fcfsPrice
+    ) external onlyOwner {
+        presalePrice = _presalePrice;
+        starlistPrice = _starlistPrice;
+        fcfsPrice = _fcfsPrice;
+    }
+
+    function setMaxPerWallet(
+        uint16 _presale,
+        uint16 _starlist,
+        uint16 _fcfs
+    ) external onlyOwner {
+        maxPerWalletPresale = _presale;
+        maxPerWalletStarlist = _starlist;
+        maxPerWalletFcfs = _fcfs;
+    }
+
+    function setOffchainSigner(address signer) external onlyOwner {
+        _offchainSigner = signer;
+    }
+
+    // ==================
+    // Admin: Privileged Mint (Team/Airdrop)
+    // ==================
+
     function airdrop(
         address[] calldata receivers,
         uint256[] calldata amounts,
@@ -134,8 +280,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         emit AirdroppedChunk(chunkNum);
     }
 
-    // Used for airdrop and minting any of the total supply that's unminted.
-    // Does not use safeMint (assumes the caller has checked whether contract receivers can receive 721s)
     function privilegedMint(
         address[] calldata receivers,
         uint256[] calldata amounts
@@ -143,304 +287,30 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (receivers.length != amounts.length || receivers.length == 0)
             revert MismatchedArrays();
         for (uint256 i; i < receivers.length; ) {
-            _mintWrapperNoSafeReceiverCheck(receivers[i], amounts[i]);
-
-            unchecked {
-                ++i;
-            }
+            _mint(receivers[i], amounts[i]);
+            unchecked { ++i; }
         }
         if (_totalMinted() > MAX_SUPPLY) {
             revert OverMaxSupply();
         }
     }
 
-    function _mintWrapperSafeReceiverCheck(address to, uint256 amount) private {
-        uint256 numBatches = amount / MINT_BATCH_SIZE;
-        for (uint256 i; i < numBatches; ) {
-            _safeMint(to, MINT_BATCH_SIZE, "");
-            unchecked {
-                ++i;
-            }
-        }
-        if (amount % MINT_BATCH_SIZE > 0) {
-            _safeMint(to, amount % MINT_BATCH_SIZE, "");
-        }
-    }
+    // ==================
+    // Redeem BlindBox -> LilStar
+    // ==================
 
-    function _mintWrapperNoSafeReceiverCheck(address to, uint256 amount)
-        private
-    {
-        uint256 numBatches = amount / MINT_BATCH_SIZE;
-        for (uint256 i; i < numBatches; ) {
-            _mint(to, MINT_BATCH_SIZE);
-            unchecked {
-                ++i;
-            }
-        }
-        if (amount % MINT_BATCH_SIZE > 0) {
-            _mint(to, amount % MINT_BATCH_SIZE);
-        }
-    }
-
-    // ------------
-    // Presale mint
-    // ------------
-    // maxAllowedForPresaleForAddr: the number the holder is allowed to mint during the entirety of the presale.
-    // Its value is verified through the signature. We do this instead of seeding the contract with state to avoid a more complex contract setup.
-    function presaleMint(
-        uint16 amount,
-        uint16 maxAllowedForPresaleForAddr,
-        bytes calldata _signature
-    ) external payable {
-        PresaleInfo memory info = presaleInfo;
-        if (
-            info.presaleStartTime == 0 ||
-            block.timestamp < info.presaleStartTime ||
-            block.timestamp >= info.presaleEndTime
-        ) {
-            revert PresaleNotOpen();
-        }
-        uint256 numMintedInPresaleLoc = numMintedInPresale[msg.sender];
-        if (amount > maxAllowedForPresaleForAddr - numMintedInPresaleLoc) {
-            revert MintingTooMuchInPresale();
-        }
-
-        uint16 totalPresaleAndAuctionMintedLocal = totalPresaleAndAuctionMinted;
-        if (
-            amount + totalPresaleAndAuctionMintedLocal >
-            TOTAL_PRESALE_AND_AUCTION_SUPPLY
-        ) {
-            revert MaxPresaleOrAuctionMintSupplyReached();
-        }
-
-        if (_totalMinted() + amount > MAX_SUPPLY) {
-            revert OverMaxSupply();
-        }
-
-        if (!_verifyPresaleSig(amount, maxAllowedForPresaleForAddr, _signature))
-            revert InvalidSignature();
-
-        uint256 totalCost = uint256(info.presalePrice) * amount;
-        if (msg.value < totalCost) {
-            revert InsufficientFunds();
-        }
-        unchecked {
-            numMintedInPresale[msg.sender] = amount + numMintedInPresaleLoc;
-            totalPresaleAndAuctionMinted =
-                totalPresaleAndAuctionMintedLocal +
-                amount;
-        }
-        _mintWrapperNoSafeReceiverCheck(msg.sender, amount);
-        emit PresaleMint(msg.sender, amount);
-    }
-
-    function _verifyPresaleSig(
-        uint16 amount,
-        uint16 maxAllowedForPresaleForAddr,
-        bytes memory _signature
-    ) private view returns (bool) {
-        bytes32 hashVal = keccak256(
-            abi.encodePacked(amount, msg.sender, maxAllowedForPresaleForAddr)
-        );
-        bytes32 signedHash = hashVal.toEthSignedMessageHash();
-        address signingAddress = signedHash.recover(_signature);
-        return signingAddress == _offchainSigner;
-    }
-
-    // Presale price to match starting price of dutch auction
-    function setPresaleParams(
-        uint32 _presaleStartTime,
-        uint32 _presaleEndTime,
-        uint64 _presalePrice
-    ) external onlyOwner {
-        if (
-            _presaleStartTime == 0 || _presaleEndTime == 0 || _presalePrice == 0
-        ) {
-            revert InvalidPresaleSetup();
-        }
-        if (_presaleStartTime >= _presaleEndTime) {
-            revert InvalidPresaleSetup();
-        }
-        presaleInfo = PresaleInfo(
-            _presaleStartTime,
-            _presaleEndTime,
-            _presalePrice
-        );
-    }
-
-    function setOffchainSigner(address _signer) external onlyOwner {
-        _offchainSigner = _signer;
-    }
-
-    // -------------
-    // Dutch auction
-    // -------------
-    uint256 public constant MAX_PER_ADDRESS_PUBLIC_MINT = 3;
-
-    function getAuctionPrice() public view returns (uint256) {
-        AuctionInfo memory info = auctionInfo;
-        if (block.timestamp < info.auctionSaleStartTime) {
-            return info.auctionStartPrice;
-        }
-        if (
-            block.timestamp - info.auctionSaleStartTime >=
-            info.auctionPriceCurveLength
-        ) {
-            return info.auctionEndPrice;
-        } else {
-            uint256 steps = (block.timestamp - info.auctionSaleStartTime) /
-                info.auctionDropInterval;
-            uint256 auctionDropPerStep = (info.auctionStartPrice -
-                info.auctionEndPrice) /
-                (info.auctionPriceCurveLength / info.auctionDropInterval);
-            return info.auctionStartPrice - (steps * auctionDropPerStep);
-        }
-    }
-
-    modifier isEOA() {
-        require(tx.origin == msg.sender, "The caller is another contract");
-        _;
-    }
-
-    function auctionMint(uint8 amount, bytes calldata _signature)
-        external
-        payable
-        isEOA
-    {
-        AuctionInfo memory info = auctionInfo;
-
-        if (
-            info.auctionSaleStartTime == 0 ||
-            block.timestamp < info.auctionSaleStartTime
-        ) {
-            revert AuctionMintNotOpen();
-        }
-
-        uint16 totalPresaleAndAuctionMintedLocal = totalPresaleAndAuctionMinted;
-        if (
-            amount + totalPresaleAndAuctionMintedLocal >
-            TOTAL_PRESALE_AND_AUCTION_SUPPLY
-        ) {
-            revert MaxPresaleOrAuctionMintSupplyReached();
-        }
-
-        if (_totalMinted() + amount > MAX_SUPPLY) {
-            revert OverMaxSupply();
-        }
-
-        uint256 numAuctionMintedForThisAddr = _getAux(msg.sender);
-
-        if (
-            numAuctionMintedForThisAddr + amount > MAX_PER_ADDRESS_PUBLIC_MINT
-        ) {
-            revert MaxAuctionMintForAddress();
-        }
-
-        if (!_verifySig(_signature)) revert InvalidSignature();
-
-        uint256 totalCost = getAuctionPrice() * amount;
-        if (msg.value < totalCost) {
-            revert InsufficientFunds();
-        }
-
-        unchecked {
-            _setAux(msg.sender, uint64(numAuctionMintedForThisAddr) + amount);
-            totalPresaleAndAuctionMinted =
-                totalPresaleAndAuctionMintedLocal +
-                amount;
-        }
-        _mint(msg.sender, amount);
-
-        if (msg.value > totalCost) {
-            (bool sent, ) = msg.sender.call{value: msg.value - totalCost}("");
-            if (!sent) {
-                revert RefundFailed();
-            }
-        }
-    }
-
-    function getNumAuctionMinted(address addr) external view returns (uint256) {
-        return _getAux(addr);
-    }
-
-    function setAuctionParams(
-        uint32 _startTime,
-        uint64 _startPriceWei,
-        uint64 _endPriceWei,
-        uint32 _priceCurveNumSeconds,
-        uint32 _dropIntervalNumSeconds
-    ) public onlyOwner {
-        if (
-            _startTime != 0 &&
-            (_startPriceWei == 0 ||
-                _priceCurveNumSeconds == 0 ||
-                _dropIntervalNumSeconds == 0)
-        ) {
-            revert InvalidAuctionSetup();
-        }
-        auctionInfo = AuctionInfo(
-            _startTime,
-            _startPriceWei,
-            _endPriceWei,
-            _priceCurveNumSeconds,
-            _dropIntervalNumSeconds
-        );
-    }
-
-    function setAuctionSaleStartTime(uint32 timestamp) external onlyOwner {
-        AuctionInfo memory info = auctionInfo;
-        if (
-            timestamp != 0 &&
-            (info.auctionStartPrice == 0 ||
-                info.auctionPriceCurveLength == 0 ||
-                info.auctionDropInterval == 0)
-        ) {
-            revert InvalidAuctionSetup();
-        }
-        auctionInfo.auctionSaleStartTime = timestamp;
-    }
-
-    function _verifySig(bytes memory _signature) private view returns (bool) {
-        bytes32 hashVal = keccak256(abi.encodePacked(msg.sender));
-        bytes32 signedHash = hashVal.toEthSignedMessageHash();
-        address signingAddress = signedHash.recover(_signature);
-        return signingAddress == _offchainSigner;
-    }
-
-    function withdraw() external {
-        (bool sent, ) = WITHDRAW_ADDRESS.call{value: address(this).balance}("");
-        if (!sent) {
-            revert WithdrawFailed();
-        }
-    }
-
-    // ----------------
-    // Redeem BlindBox
-    // ----------------
     function redeemBlindBoxes(uint256[] calldata blindBoxIds)
         external
         returns (uint256[] memory)
     {
         RedeemInfo memory info = redeemInfo;
-        if (!info.redeemBlindBoxOpen) {
-            revert RedeemBlindBoxNotOpen();
-        }
-        return _redeemBlindBoxesImpl(msg.sender, blindBoxIds, true, info.lilStarContract);
-    }
+        if (!info.redeemBlindBoxOpen) revert RedeemBlindBoxNotOpen();
 
-    function _redeemBlindBoxesImpl(
-        address blindBoxOwner,
-        uint256[] memory blindBoxIds,
-        bool burnOwnerOrApprovedCheck,
-        address lilStarContract
-    ) private returns (uint256[] memory) {
         for (uint256 i; i < blindBoxIds.length; ) {
-            _burn(blindBoxIds[i], burnOwnerOrApprovedCheck);
-            unchecked {
-                ++i;
-            }
+            _burn(blindBoxIds[i], true);
+            unchecked { ++i; }
         }
-        return ILilStarRedeemer(lilStarContract).redeemBlindBoxes(blindBoxOwner, blindBoxIds);
+        return ILilStarRedeemer(info.lilStarContract).redeemBlindBoxes(msg.sender, blindBoxIds);
     }
 
     function forceRedeemBlindBoxes(address blindBoxOwner, uint256[] calldata blindBoxIds)
@@ -449,83 +319,44 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         returns (uint256[] memory)
     {
         for (uint256 i; i < blindBoxIds.length; ) {
-            if (ownerOf(blindBoxIds[i]) != blindBoxOwner) {
+            if (ownerOf(blindBoxIds[i]) != blindBoxOwner)
                 revert ForceRedeemBlindBoxOwnerMismatch();
-            }
-            unchecked {
-                ++i;
-            }
+            _burn(blindBoxIds[i], false);
+            unchecked { ++i; }
         }
-        return
-            _redeemBlindBoxesImpl(
-                blindBoxOwner,
-                blindBoxIds,
-                false,
-                redeemInfo.lilStarContract
-            );
+        return ILilStarRedeemer(redeemInfo.lilStarContract).redeemBlindBoxes(blindBoxOwner, blindBoxIds);
     }
 
     function openRedeemBlindBoxState() external onlyOwner {
-        RedeemInfo memory info = redeemInfo;
-        if (info.lilStarContract == address(0)) {
+        if (redeemInfo.lilStarContract == address(0))
             revert LilStarContractNotSet();
-        }
-        redeemInfo = RedeemInfo(true, info.lilStarContract);
+        redeemInfo.redeemBlindBoxOpen = true;
     }
 
     function setLilStarContract(address contractAddress) external onlyOwner {
-        redeemInfo = RedeemInfo(redeemInfo.redeemBlindBoxOpen, contractAddress);
+        redeemInfo.lilStarContract = contractAddress;
     }
 
-    // --------------
-    // Allowlist mint
-    // --------------
-    function allowlistMint() external payable {
-        if (allowlistMintPrice == 0) {
-            revert AllowlistMintNotOpen();
-        }
-        uint256 amount = allowlistMintsAlloc[msg.sender];
+    // ==================
+    // Withdraw
+    // ==================
 
-        uint256 totalCost = allowlistMintPrice * amount;
-        if (msg.value < totalCost) {
-            revert InsufficientFunds();
-        }
-        if (_totalMinted() + amount > MAX_SUPPLY) {
-            revert OverMaxSupply();
-        }
-        allowlistMintsAlloc[msg.sender] = 0;
-
-        _safeMint(msg.sender, amount);
+    function withdraw() external {
+        (bool sent, ) = WITHDRAW_ADDRESS.call{value: address(this).balance}("");
+        if (!sent) revert WithdrawFailed();
     }
 
-    function setAllowlistMintsAlloc(
-        address[] calldata addresses,
-        uint256[] calldata amounts
-    ) external onlyOwner {
-        if (addresses.length != amounts.length || addresses.length == 0)
-            revert MismatchedArrays();
-        for (uint256 i; i < addresses.length; ) {
-            allowlistMintsAlloc[addresses[i]] = amounts[i];
-            unchecked {
-                ++i;
-            }
-        }
-    }
+    // ==================
+    // Transfer Lock
+    // ==================
 
-    function setAllowlistMintPrice(uint256 price) external onlyOwner {
-        allowlistMintPrice = price;
-    }
-
-    // -------------------
-    // Break transfer lock
-    // -------------------
     function breakTransferLock() external onlyOwner {
         initialTransferLockOn = false;
     }
 
-    // --------
+    // ==================
     // Metadata
-    // --------
+    // ==================
 
     function _baseURI() internal view override returns (string memory) {
         return _baseTokenURI;
@@ -535,9 +366,10 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         _baseTokenURI = baseURI;
     }
 
-    // --------
-    // EIP-2981
-    // --------
+    // ==================
+    // EIP-2981 Royalties
+    // ==================
+
     function setDefaultRoyalty(address receiver, uint96 feeNumerator)
         external
         onlyOwner
@@ -553,9 +385,10 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         _setTokenRoyalty(tokenId, receiver, feeNumerator);
     }
 
-    // ---------------------------------------------------
-    // OperatorFilterer overrides (overrides, values etc.)
-    // ---------------------------------------------------
+    // ==================
+    // Operator Filtering
+    // ==================
+
     function setApprovalForAll(address operator, bool approved)
         public
         override(ERC721A)
@@ -583,7 +416,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         super.approve(operator, tokenId);
     }
 
-    // ERC721A calls transferFrom internally in its two safeTransferFrom functions, so we don't need to override those.
     function transferFrom(
         address from,
         address to,
@@ -592,9 +424,10 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         super.transferFrom(from, to, tokenId);
     }
 
-    // --------------
-    // Registry check
-    // --------------
+    // ==================
+    // Registry Check
+    // ==================
+
     function _beforeTokenTransfers(
         address from,
         address to,
@@ -631,9 +464,10 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         registryAddress = _registryAddress;
     }
 
-    // ----------------------------------------------
+    // ==================
     // EIP-165
-    // ----------------------------------------------
+    // ==================
+
     function supportsInterface(bytes4 interfaceId)
         public
         view

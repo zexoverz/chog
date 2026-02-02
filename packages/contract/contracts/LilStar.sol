@@ -16,9 +16,14 @@ error BlindBoxAddressNotSet();
 error RedeemBlindBoxNotOpen();
 error InvalidRedeemer();
 error NoMoreTokenIds();
+error SBTContractNotSet();
 
 interface IRegistry {
     function isAllowedOperator(address operator) external view returns (bool);
+}
+
+interface ILilStarSBT {
+    function mintRandomSBT(address to, uint256 randomSeed) external returns (uint256 tokenId, uint256 sbtType);
 }
 
 contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
@@ -30,6 +35,11 @@ contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
         uint256 indexed tokenId,
         uint256 indexed blindBoxId
     );
+    event SBTAwarded(
+        address indexed to,
+        uint256 indexed sbtTokenId,
+        uint8 sbtType
+    );
 
     bool public operatorFilteringEnabled = true;
     bool public isRegistryActive = false;
@@ -40,6 +50,9 @@ contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
         address blindBoxAddress;
     }
     RedeemInfo public redeemInfo;
+
+    // SBT contract for utility perks
+    address public sbtContract;
 
     uint16 public immutable MAX_SUPPLY;
     uint16 internal _numAvailableRemainingTokens;
@@ -97,6 +110,14 @@ contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
             _mint(to, tokenId);
             emit BlindBoxRedeemed(to, tokenId, blindBoxId);
             tokenIds[i] = tokenId;
+
+            // Mint SBT if contract is set
+            if (sbtContract != address(0)) {
+                uint256 randomSeed = _getRandomNum(blindBoxId + tokenId);
+                (uint256 sbtTokenId, ) = ILilStarSBT(sbtContract).mintRandomSBT(to, randomSeed);
+                emit SBTAwarded(to, sbtTokenId, uint8(sbtTokenId));
+            }
+
             unchecked {
                 ++i;
             }
@@ -194,6 +215,10 @@ contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
             revert BlindBoxAddressNotSet();
         }
         redeemInfo = RedeemInfo(_redeemBlindBoxOpen, blindBoxAddress);
+    }
+
+    function setSBTContract(address _sbtContract) external onlyOwner {
+        sbtContract = _sbtContract;
     }
 
     // ------------

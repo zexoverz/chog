@@ -4,10 +4,12 @@ pragma solidity ^0.8.18;
 import {Test} from "forge-std/Test.sol";
 import {BlindBox} from "./BlindBox.sol";
 import {LilStar, BlindBoxAddressNotSet, RedeemBlindBoxNotOpen, InvalidRedeemer} from "./LilStar.sol";
+import {LilStarSBT} from "./LilStarSBT.sol";
 
 contract LilStarTest is Test {
     BlindBox public blindBox;
     LilStar public lilStar;
+    LilStarSBT public sbt;
 
     address public owner = address(this);
     address public withdrawAddress = address(0x99);
@@ -15,20 +17,23 @@ contract LilStarTest is Test {
     address public bob = address(0x3);
 
     uint16 public constant MAX_SUPPLY = 6000;
-    uint256 public constant PRESALE_SUPPLY = 3756;
+    uint256 public constant MINTABLE_SUPPLY = 3756;
 
     function setUp() public {
         blindBox = new BlindBox(
             MAX_SUPPLY,
-            PRESALE_SUPPLY,
+            MINTABLE_SUPPLY,
             payable(withdrawAddress)
         );
 
         lilStar = new LilStar("LilStar", "LSTAR", MAX_SUPPLY);
+        sbt = new LilStarSBT();
 
         // Link contracts
         blindBox.setLilStarContract(address(lilStar));
         lilStar.setBlindBoxAddress(address(blindBox));
+        lilStar.setSBTContract(address(sbt));
+        sbt.setLilStarContract(address(lilStar));
 
         // Fund test accounts
         vm.deal(alice, 100 ether);
@@ -48,6 +53,10 @@ contract LilStarTest is Test {
 
     function test_InitialTotalSupply() public view {
         assertEq(lilStar.totalSupply(), 0);
+    }
+
+    function test_SBTContractLinked() public view {
+        assertEq(lilStar.sbtContract(), address(sbt));
     }
 
     // ============
@@ -116,6 +125,33 @@ contract LilStarTest is Test {
         // Check LilStar balance
         assertEq(lilStar.balanceOf(alice), 5);
         assertEq(lilStar.totalSupply(), 5);
+    }
+
+    function test_RedeemBlindBoxesMintsSBT() public {
+        // Mint blindboxes to alice
+        address[] memory recipients = new address[](1);
+        recipients[0] = alice;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 5;
+        blindBox.privilegedMint(recipients, amounts);
+
+        // Enable redemption
+        blindBox.openRedeemBlindBoxState();
+        lilStar.setRedeemBlindBoxState(true);
+        blindBox.breakTransferLock();
+
+        // Redeem
+        uint256[] memory tokenIds = new uint256[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            tokenIds[i] = i;
+        }
+
+        vm.prank(alice);
+        blindBox.redeemBlindBoxes(tokenIds);
+
+        // Check SBT balance (should have 5 SBTs distributed across types)
+        uint256 totalSBTs = sbt.balanceOf(alice, 1) + sbt.balanceOf(alice, 2) + sbt.balanceOf(alice, 3);
+        assertEq(totalSBTs, 5);
     }
 
     function test_RedeemEmitsEvents() public {
@@ -190,8 +226,41 @@ contract LilStarTest is Test {
         assertEq(lilStar.balanceOf(alice), 10);
 
         // Token IDs should be unique and within range
-        // (Can't easily verify randomness in test, but supply should match)
         assertEq(lilStar.totalSupply(), 10);
+    }
+
+    // ============
+    // Redeem without SBT Contract
+    // ============
+
+    function test_RedeemWithoutSBTContract() public {
+        // Create new LilStar without SBT
+        LilStar lilStarNoSBT = new LilStar("NoSBT", "NOSBT", MAX_SUPPLY);
+        BlindBox blindBoxNoSBT = new BlindBox(MAX_SUPPLY, MINTABLE_SUPPLY, payable(withdrawAddress));
+
+        blindBoxNoSBT.setLilStarContract(address(lilStarNoSBT));
+        lilStarNoSBT.setBlindBoxAddress(address(blindBoxNoSBT));
+        // Note: NOT setting SBT contract
+
+        // Mint and redeem
+        address[] memory recipients = new address[](1);
+        recipients[0] = alice;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 1;
+        blindBoxNoSBT.privilegedMint(recipients, amounts);
+
+        blindBoxNoSBT.openRedeemBlindBoxState();
+        lilStarNoSBT.setRedeemBlindBoxState(true);
+        blindBoxNoSBT.breakTransferLock();
+
+        uint256[] memory tokenIds = new uint256[](1);
+        tokenIds[0] = 0;
+
+        vm.prank(alice);
+        blindBoxNoSBT.redeemBlindBoxes(tokenIds);
+
+        // Should still get LilStar, just no SBT
+        assertEq(lilStarNoSBT.balanceOf(alice), 1);
     }
 
     // ============
@@ -217,18 +286,8 @@ contract LilStarTest is Test {
         vm.prank(alice);
         blindBox.redeemBlindBoxes(tokenIds);
 
-        // Find the minted token (checking a few possible IDs)
-        uint256 mintedTokenId;
-        for (uint256 i = 0; i < MAX_SUPPLY; i++) {
-            try lilStar.ownerOf(i) returns (address tokenOwner) {
-                if (tokenOwner == alice) {
-                    mintedTokenId = i;
-                    break;
-                }
-            } catch {
-                continue;
-            }
-        }
+        // Find the minted token
+        uint256 mintedTokenId = _findAliceToken();
 
         string memory expectedURI = string(
             abi.encodePacked(baseURI, vm.toString(mintedTokenId))
@@ -258,17 +317,7 @@ contract LilStarTest is Test {
         blindBox.redeemBlindBoxes(tokenIds);
 
         // Find the minted token
-        uint256 mintedTokenId;
-        for (uint256 i = 0; i < MAX_SUPPLY; i++) {
-            try lilStar.ownerOf(i) returns (address tokenOwner) {
-                if (tokenOwner == alice) {
-                    mintedTokenId = i;
-                    break;
-                }
-            } catch {
-                continue;
-            }
-        }
+        uint256 mintedTokenId = _findAliceToken();
 
         // Set as permanent
         uint256[] memory permanentIds = new uint256[](1);
@@ -302,17 +351,7 @@ contract LilStarTest is Test {
         blindBox.redeemBlindBoxes(tokenIds);
 
         // Find the minted token
-        uint256 mintedTokenId;
-        for (uint256 i = 0; i < MAX_SUPPLY; i++) {
-            try lilStar.ownerOf(i) returns (address tokenOwner) {
-                if (tokenOwner == alice) {
-                    mintedTokenId = i;
-                    break;
-                }
-            } catch {
-                continue;
-            }
-        }
+        uint256 mintedTokenId = _findAliceToken();
 
         // Transfer to bob
         vm.prank(alice);
@@ -344,17 +383,7 @@ contract LilStarTest is Test {
         blindBox.redeemBlindBoxes(tokenIds);
 
         // Find the minted token
-        uint256 mintedTokenId;
-        for (uint256 i = 0; i < MAX_SUPPLY; i++) {
-            try lilStar.ownerOf(i) returns (address tokenOwner) {
-                if (tokenOwner == alice) {
-                    mintedTokenId = i;
-                    break;
-                }
-            } catch {
-                continue;
-            }
-        }
+        uint256 mintedTokenId = _findAliceToken();
 
         (address receiver, uint256 amount) = lilStar.royaltyInfo(
             mintedTokenId,
@@ -412,8 +441,22 @@ contract LilStarTest is Test {
 
         // All LilStars minted
         assertEq(tinyLilStar.totalSupply(), 3);
+    }
 
-        // Now try to mint more (should fail) - but we can't easily test this
-        // since BlindBox controls the minting and we already redeemed all
+    // ============
+    // Helpers
+    // ============
+
+    function _findAliceToken() internal view returns (uint256) {
+        for (uint256 i = 0; i < MAX_SUPPLY; i++) {
+            try lilStar.ownerOf(i) returns (address tokenOwner) {
+                if (tokenOwner == alice) {
+                    return i;
+                }
+            } catch {
+                continue;
+            }
+        }
+        revert("Alice token not found");
     }
 }
