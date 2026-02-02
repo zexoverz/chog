@@ -1,0 +1,12 @@
+{
+  "DeployModule": {
+    "owner": "0xb0175f56d4731C02aC9A30877fcD7c18C6af1858",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "feeRecipient": "0xb0175f56d4731C02aC9A30877fcD7c18C6af1858",
+    "platformFee": "0",
+    "nftName": "Collectible",
+    "nftSymbol": "COL",
+    "baseTokenURI": "ipfs://",
+    "wmon": "0x6292801F2598D7a24FA99265685bcCD4DcFB0Fc2"
+  }
+}

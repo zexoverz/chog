@@ -1,0 +1,22 @@
+{
+  "name": "contract",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.6",
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.1",
+    "@types/node": "^22.8.5",
+    "dotenv": "^17.2.3",
+    "forge-std": "foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.1.2",
+    "typescript": "~5.8.0",
+    "viem": "^2.30.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0",
+    "@turbo-eth/solbase-sol": "^0.0.1",
+    "closedsea": "^1.0.0",
+    "erc721a": "^4.3.0"
+  }
+}
