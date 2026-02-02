@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CONTRACTS } from "@/config/contracts";
 import { blindBoxAbi } from "@/config/abis";
-import { multicall } from "viem/actions";
 
 const BLINDBOX_ADDRESS = CONTRACTS.monadTestnet.blindBox;
 const LILSTAR_ADDRESS = CONTRACTS.monadTestnet.lilStar;
