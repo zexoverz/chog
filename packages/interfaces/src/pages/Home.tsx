@@ -15,6 +15,9 @@ export function Home() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Collectible Swap</h1>
           <div className="flex items-center gap-4">
+            <Link to="/mint">
+              <Button variant="default">Mint BlindBox</Button>
+            </Link>
             <Link to="/gallery">
               <Button variant="outline">View Gallery</Button>
             </Link>

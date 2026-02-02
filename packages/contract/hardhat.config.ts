@@ -46,8 +46,8 @@ export default defineConfig({
     monadTestnet: {
       type: "http",
       chainType: "l1",
-      url: configVariable("MONAD_TESTNET_RPC_URL"),
-      accounts: [configVariable("MONAD_PRIVATE_KEY")],
+      url: process.env.MONAD_TESTNET_RPC_URL!,
+      accounts: [process.env.MONAD_PRIVATE_KEY!],
     },
     monadMainnet: {
       type: "http",
@@ -62,7 +62,7 @@ export default defineConfig({
     },
     etherscan: {
       enabled: true,
-      apiKey: configVariable('ETHERSCAN_API_KEY'),
+      apiKey: process.env.ETHERSCAN_API_KEY!,
     },
     sourcify: {
       enabled: true,

@@ -15,9 +15,9 @@ export function CreateOffer() {
 
   // Form state
   const [targetAddress, setTargetAddress] = useState("");
-  const [offeredCollection, setOfferedCollection] = useState(CONTRACTS.monadTestnet.collectible);
+  const [offeredCollection, setOfferedCollection] = useState<string>(CONTRACTS.monadTestnet.collectible);
   const [offeredTokenId, setOfferedTokenId] = useState("");
-  const [wantedCollection, setWantedCollection] = useState(CONTRACTS.monadTestnet.collectible);
+  const [wantedCollection, setWantedCollection] = useState<string>(CONTRACTS.monadTestnet.collectible);
   const [wantedTokenId, setWantedTokenId] = useState("");
   const [nativeAmount, setNativeAmount] = useState("");
 

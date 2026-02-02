@@ -8,5 +8,8 @@
     "nftSymbol": "COL",
     "baseTokenURI": "ipfs://",
     "wmon": "0x6292801F2598D7a24FA99265685bcCD4DcFB0Fc2"
+  },
+  "LilStarDeployModule": {
+    "withdrawAddress": "0xb0175f56d4731C02aC9A30877fcD7c18C6af1858"
   }
 }

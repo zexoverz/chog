@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { useOffer, useAcceptOffer, useDeclineOffer, useCancelOffer, OfferStatus } from "../hooks";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { formatEther, type Address } from "viem";
+import { formatEther } from "viem";
 import { CONTRACTS, erc721Abi } from "../config";
 
 interface OfferCardProps {
@@ -99,8 +99,8 @@ export function OfferCard({ offerId, onSuccess }: OfferCardProps) {
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">Offer #{offerId.toString()}</CardTitle>
-          <span className={`px-2 py-1 rounded text-xs text-white ${statusColors[status]}`}>
-            {statusLabels[status]}
+          <span className={`px-2 py-1 rounded text-xs text-white ${statusColors[status as OfferStatus]}`}>
+            {statusLabels[status as OfferStatus]}
           </span>
         </div>
       </CardHeader>
