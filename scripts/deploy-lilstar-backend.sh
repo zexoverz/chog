@@ -6,9 +6,9 @@ export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
 # Config
-APP_DIR="/root/lilstar-backend"
+APP_DIR="/root/chog"
 APP_NAME="lilstar-api-testnet"
-REPO_URL="git@github.com:your-username/collectible-is-collected.git"  # Update this!
+REPO_URL="git@github.com:zexoverz/chog.git"
 BRANCH="master"
 
 echo "🚀 Starting deployment..."
@@ -28,16 +28,14 @@ echo "📦 Fetching latest code..."
 git fetch origin
 git reset --hard origin/$BRANCH
 
-# Navigate to backend package
-cd packages/backend
-
 echo "📦 Installing dependencies..."
-bun install
+bun install --filter backend
 
 # Create logs directory if needed
-mkdir -p logs
+mkdir -p packages/backend/logs
 
 echo "🔁 Reloading PM2..."
+cd /root/chog/packages/backend
 pm2 reload "$APP_NAME" || pm2 start ecosystem.config.cjs --env production
 
 pm2 save

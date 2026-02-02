@@ -4,7 +4,7 @@ module.exports = {
       name: 'lilstar-api-testnet',
       script: 'src/index.ts',
       interpreter: 'bun',
-      cwd: '/root/lilstar-backend',  // Update this to your server path
+      cwd: '/root/chog/packages/backend',
       env: {
         PORT: 3001,
         NODE_ENV: 'development',
@@ -46,8 +46,8 @@ module.exports = {
       max_memory_restart: '500M',
 
       // Logging
-      error_file: '/root/lilstar-backend/logs/error.log',
-      out_file: '/root/lilstar-backend/logs/out.log',
+      error_file: '/root/chog/packages/backend/logs/error.log',
+      out_file: '/root/chog/packages/backend/logs/out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     },
   ],
