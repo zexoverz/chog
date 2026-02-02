@@ -23,13 +23,15 @@ async function main() {
     transport: http(process.env.MONAD_TESTNET_RPC_URL),
   });
 
-  console.log("Setting phase to STARLIST (2)...");
-  
+  const phaseArg = Number(process.argv[2] ?? 3);
+  const phaseNames = ["CLOSED", "PRESALE", "STARLIST", "FCFS"];
+  console.log(`Setting phase to ${phaseNames[phaseArg]} (${phaseArg})...`);
+
   const hash = await client.writeContract({
     address: BLINDBOX_ADDRESS,
     abi,
     functionName: "setPhase",
-    args: [2],
+    args: [phaseArg],
   });
 
   console.log("TX:", hash);

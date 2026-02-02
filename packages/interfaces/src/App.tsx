@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Web3Provider } from "./providers/Web3Provider";
-import { Home, Gallery, Mint } from "./pages";
+import { Home, Gallery, Mint, Reveal } from "./pages";
 
 export function App() {
   return (
@@ -10,6 +10,7 @@ export function App() {
           <Route path="/" element={<Home />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/mint" element={<Mint />} />
+          <Route path="/reveal" element={<Reveal />} />
         </Routes>
       </BrowserRouter>
     </Web3Provider>

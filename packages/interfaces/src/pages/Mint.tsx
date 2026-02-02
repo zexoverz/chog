@@ -116,6 +116,9 @@ export function Mint() {
             LilStar BlindBox
           </Link>
           <div className="flex items-center gap-4">
+            <Link to="/reveal">
+              <Button variant="default">Reveal</Button>
+            </Link>
             <Link to="/">
               <Button variant="outline">Back to Home</Button>
             </Link>
