@@ -1,21 +1,12 @@
-import { loadTraitDatabase, printTraitSummary } from "./traits";
-import {
-	SeededRandom,
-	selectUniqueNFTs,
-	type SelectedTraits,
-} from "./random";
+import { COLLECTION_CONFIG, type NFTMetadata } from "./config";
 import { ensureOutputDirs, generateImage } from "./image";
 import {
 	generateMetadata,
-	saveMetadata,
 	saveCollectionMetadata,
+	saveMetadata,
 } from "./metadata";
-import {
-	COLLECTION_CONFIG,
-	type CharacterType,
-	type Rarity,
-	type NFTMetadata,
-} from "./config";
+import { SeededRandom, type SelectedTraits, selectUniqueNFTs } from "./random";
+import { loadTraitDatabase, printTraitSummary } from "./traits";
 
 interface GenerationOptions {
 	seed?: number;

@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import { COLOR_MATCHING_COMMON, type CharacterType } from "./config";
+import { type CharacterType, COLOR_MATCHING_COMMON } from "./config";
 
 const ASSETS_PATH = join(import.meta.dir, "../../assets/art/traits");
 const OUTPUT_PATH = join(import.meta.dir, "../../output/common_test");
@@ -15,7 +15,9 @@ async function generateTestImages() {
 		mkdirSync(join(OUTPUT_PATH, char), { recursive: true });
 	}
 
-	console.log("=== Generating Common Base + Hand + Side Hand Test Images ===\n");
+	console.log(
+		"=== Generating Common Base + Hand + Side Hand Test Images ===\n",
+	);
 
 	for (const char of characters) {
 		console.log(`\n--- ${char.toUpperCase()} ---`);
@@ -63,7 +65,9 @@ async function generateTestImages() {
 				.png()
 				.toFile(outputPath);
 
-			console.log(`  ✓ ${baseFile} + ${colorMapping.hand} + ${colorMapping.side_hand}`);
+			console.log(
+				`  ✓ ${baseFile} + ${colorMapping.hand} + ${colorMapping.side_hand}`,
+			);
 		}
 	}
 

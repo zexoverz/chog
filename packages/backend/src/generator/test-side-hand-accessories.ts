@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import { COLOR_MATCHING_COMMON, type CharacterType } from "./config";
+import { type CharacterType, COLOR_MATCHING_COMMON } from "./config";
 
 const ASSETS_PATH = join(import.meta.dir, "../../assets/art/traits");
 const OUTPUT_PATH = join(import.meta.dir, "../../output/side_hand_acc_test");
@@ -74,11 +74,15 @@ async function generateTestImages() {
 				.toFile(outputPath);
 		}
 
-		console.log(`  ✓ Generated ${accessories.length} images with ${testBase} + ${colorMapping.side_hand}`);
+		console.log(
+			`  ✓ Generated ${accessories.length} images with ${testBase} + ${colorMapping.side_hand}`,
+		);
 	}
 
 	console.log(`\n✅ Test images saved to: output/side_hand_acc_test/`);
-	console.log(`   Check each character folder to verify accessory positioning.`);
+	console.log(
+		`   Check each character folder to verify accessory positioning.`,
+	);
 }
 
 generateTestImages().catch(console.error);

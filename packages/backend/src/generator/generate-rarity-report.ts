@@ -1,6 +1,6 @@
-import { readdirSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { NFTMetadata, CharacterType } from "./config";
+import type { CharacterType, NFTMetadata } from "./config";
 
 const OUTPUT_PATH = join(import.meta.dir, "../../output/common");
 const REPORT_PATH = join(OUTPUT_PATH, "rarity_report.csv");
@@ -16,7 +16,9 @@ async function generateRarityReport() {
 	for (const char of characters) {
 		const charMetadataPath = join(OUTPUT_PATH, char, "metadata");
 		if (existsSync(charMetadataPath)) {
-			const files = readdirSync(charMetadataPath).filter(f => f.endsWith(".json"));
+			const files = readdirSync(charMetadataPath).filter((f) =>
+				f.endsWith(".json"),
+			);
 			for (const file of files) {
 				allFiles.push({ path: charMetadataPath, file });
 			}
@@ -41,7 +43,8 @@ async function generateRarityReport() {
 			if (!traitCounts[attr.trait_type]) {
 				traitCounts[attr.trait_type] = {};
 			}
-			traitCounts[attr.trait_type][attr.value] = (traitCounts[attr.trait_type][attr.value] || 0) + 1;
+			traitCounts[attr.trait_type][attr.value] =
+				(traitCounts[attr.trait_type][attr.value] || 0) + 1;
 		}
 	}
 
@@ -105,9 +108,14 @@ async function generateRarityReport() {
 	for (const layer of layerOrder) {
 		if (!traitCounts[layer]) continue;
 		const variantCount = Object.keys(traitCounts[layer]).length;
-		const withTrait = Object.values(traitCounts[layer]).reduce((a, b) => a + b, 0);
+		const withTrait = Object.values(traitCounts[layer]).reduce(
+			(a, b) => a + b,
+			0,
+		);
 		const withoutTrait = totalNFTs - withTrait;
-		console.log(`${layer}: ${variantCount} variants (${withTrait} have, ${withoutTrait} none)`);
+		console.log(
+			`${layer}: ${variantCount} variants (${withTrait} have, ${withoutTrait} none)`,
+		);
 	}
 }
 

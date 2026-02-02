@@ -1,12 +1,11 @@
-import sharp from "sharp";
-import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import sharp from "sharp";
 import {
-	type CharacterType,
-	type LayerType,
-	LAYER_ORDER_LEGENDARY,
-	LAYER_ORDER_COMMON,
 	LAYER_OFFSETS,
+	LAYER_ORDER_COMMON,
+	LAYER_ORDER_LEGENDARY,
+	type LayerType,
 } from "./config";
 import type { SelectedTraits } from "./random";
 import { getTraitPath } from "./traits";
@@ -20,10 +19,7 @@ export async function ensureOutputDirs(): Promise<void> {
 }
 
 async function resizeLayer(inputPath: string, size: number): Promise<Buffer> {
-	return sharp(inputPath)
-		.resize(size, size, { fit: "fill" })
-		.png()
-		.toBuffer();
+	return sharp(inputPath).resize(size, size, { fit: "fill" }).png().toBuffer();
 }
 
 export async function generateImage(
@@ -54,7 +50,9 @@ export async function generateImage(
 			selection.rarity,
 		);
 		const offset = LAYER_OFFSETS[layer];
-		console.log(`  ${layer}: ${trait.filename}${offset ? ` [offset: top=${offset.top}, left=${offset.left}]` : ""}`);
+		console.log(
+			`  ${layer}: ${trait.filename}${offset ? ` [offset: top=${offset.top}, left=${offset.left}]` : ""}`,
+		);
 		layers.push({ path, layer });
 	}
 

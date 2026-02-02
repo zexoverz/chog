@@ -14,12 +14,12 @@ async function generateNecklaceShirtTest() {
 
 	// Get all necklaces
 	const necklacesDir = join(ASSETS_PATH, "necklaces");
-	const necklaces = readdirSync(necklacesDir).filter(f => f.endsWith(".png"));
+	const necklaces = readdirSync(necklacesDir).filter((f) => f.endsWith(".png"));
 	console.log(`Found ${necklaces.length} necklaces\n`);
 
 	// Get shirts from bear/bunny/fox (shared)
 	const shirtDir = join(ASSETS_PATH, "shirt_bear_bunny_fox");
-	const shirts = readdirSync(shirtDir).filter(f => f.endsWith(".png"));
+	const shirts = readdirSync(shirtDir).filter((f) => f.endsWith(".png"));
 	console.log(`Found ${shirts.length} shirts (bear/bunny/fox)\n`);
 
 	// Use bear as test character
@@ -59,7 +59,10 @@ async function generateNecklaceShirtTest() {
 				.toBuffer();
 
 			// Composite: base -> shirt -> necklace
-			const outputPath = join(necklaceFolder, `${shirt.replace(".png", "")}_${necklace}`);
+			const outputPath = join(
+				necklaceFolder,
+				`${shirt.replace(".png", "")}_${necklace}`,
+			);
 
 			await sharp(baseBuffer)
 				.composite([
@@ -76,7 +79,9 @@ async function generateNecklaceShirtTest() {
 	console.log(`\n=== Complete ===`);
 	console.log(`Generated ${count} test images`);
 	console.log(`Output: ${OUTPUT_PATH}`);
-	console.log(`\nCheck each necklace folder to identify incompatible shirt combinations.`);
+	console.log(
+		`\nCheck each necklace folder to identify incompatible shirt combinations.`,
+	);
 }
 
 generateNecklaceShirtTest().catch(console.error);

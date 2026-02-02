@@ -1,17 +1,25 @@
-import { readdirSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 
 const COMMON_PATH = join(import.meta.dir, "../../output/common");
-const OUTPUT_PATH = join(import.meta.dir, "../../output/common_redistributed_v3");
+const OUTPUT_PATH = join(
+	import.meta.dir,
+	"../../output/common_redistributed_v3",
+);
 const ASSETS_PATH = join(import.meta.dir, "../../assets/art/traits");
 
 const characters = ["bear", "bunny", "fox", "chogstar"] as const;
 type CharacterType = (typeof characters)[number];
 
 const LEGENDARY_SHIRTS = [
-	"Outfit Cutegoldenstar", "Outfit Shark", "Outfit Cutestar", "Outfit Greenfrog",
-	"Outfit Line", "Outfit Goldensweater", "Outfit Dino"
+	"Outfit Cutegoldenstar",
+	"Outfit Shark",
+	"Outfit Cutestar",
+	"Outfit Greenfrog",
+	"Outfit Line",
+	"Outfit Goldensweater",
+	"Outfit Dino",
 ];
 
 // Layer order for image compositing
@@ -38,13 +46,21 @@ interface NFTInfo {
 }
 
 function toFileName(traitName: string): string {
-	return traitName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+	return traitName
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "_")
+		.replace(/_+/g, "_")
+		.replace(/^_|_$/g, "");
 }
 
 function toTraitName(fileName: string): string {
-	return fileName.replace(".png", "").split("_").map(w =>
-		w.charAt(0).toUpperCase() + w.slice(1)
-	).join(" ").replace(/  +/g, " ").trim();
+	return fileName
+		.replace(".png", "")
+		.split("_")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ")
+		.replace(/ {2,}/g, " ")
+		.trim();
 }
 
 function getShirtFolder(character: CharacterType): string {
@@ -55,19 +71,25 @@ function getAvailableShirts(character: CharacterType): string[] {
 	const folder = getShirtFolder(character);
 	const folderPath = join(ASSETS_PATH, folder);
 	return readdirSync(folderPath)
-		.filter(f => f.endsWith(".png"))
-		.map(f => toTraitName(f));
+		.filter((f) => f.endsWith(".png"))
+		.map((f) => toTraitName(f));
 }
 
 function isLegendaryShirt(name: string): boolean {
-	return LEGENDARY_SHIRTS.some(l => l.toLowerCase() === name.toLowerCase());
+	return LEGENDARY_SHIRTS.some((l) => l.toLowerCase() === name.toLowerCase());
 }
 
-async function regenerateImage(metadata: any, character: CharacterType, outputImagePath: string) {
+async function regenerateImage(
+	metadata: any,
+	character: CharacterType,
+	outputImagePath: string,
+) {
 	const layers: { path: string; zIndex: number }[] = [];
 
-	const shirtFolder = character === "chogstar" ? "shirt_chogstar" : "shirt_bear_bunny_fox";
-	const headAccFolder = character === "chogstar" ? "head_acc_chogstar" : "head_acc_bear_bunny_fox";
+	const shirtFolder =
+		character === "chogstar" ? "shirt_chogstar" : "shirt_bear_bunny_fox";
+	const headAccFolder =
+		character === "chogstar" ? "head_acc_chogstar" : "head_acc_bear_bunny_fox";
 
 	for (const attr of metadata.attributes) {
 		const traitType = attr.trait_type;
@@ -76,18 +98,18 @@ async function regenerateImage(metadata: any, character: CharacterType, outputIm
 		if (traitType === "Rarity" || traitType === "Character" || !value) continue;
 
 		let layerPath: string | null = null;
-		const fileName = toFileName(value) + ".png";
+		const fileName = `${toFileName(value)}.png`;
 
 		const folderMap: Record<string, string[]> = {
-			"Background": ["background"],
-			"Base": [`base_${character}`],
-			"Shirt": [shirtFolder],
-			"Necklace": ["necklaces"],
-			"Mouth": ["mouth"],
-			"Eyes": ["eyes"],
-			"Eyeglasses": ["eyeglasses"],
+			Background: ["background"],
+			Base: [`base_${character}`],
+			Shirt: [shirtFolder],
+			Necklace: ["necklaces"],
+			Mouth: ["mouth"],
+			Eyes: ["eyes"],
+			Eyeglasses: ["eyeglasses"],
 			"Head Accessory": [headAccFolder],
-			"Hand": [`hand_${character}`],
+			Hand: [`hand_${character}`],
 			"Hand Accessories": ["hand_accessories", "side_hand_accessories"], // Check both folders
 			"Side Hand": [`side_hand_${character}`],
 			"Side Hand Accessories": ["side_hand_accessories"],
@@ -95,13 +117,18 @@ async function regenerateImage(metadata: any, character: CharacterType, outputIm
 
 		// Legendary folders have different names for some traits
 		const legendaryFolderMap: Record<string, string[]> = {
-			"Background": ["background"],
-			"Shirt": ["clothes"],
-			"Eyes": ["eyes"],
-			"Hand Accessories": ["hand_accessories_gold", "side_hand_accessories_gold"],
+			Background: ["background"],
+			Shirt: ["clothes"],
+			Eyes: ["eyes"],
+			"Hand Accessories": [
+				"hand_accessories_gold",
+				"side_hand_accessories_gold",
+			],
 		};
 
-		const folders = folderMap[traitType] || [traitType.toLowerCase().replace(/ /g, "_")];
+		const folders = folderMap[traitType] || [
+			traitType.toLowerCase().replace(/ /g, "_"),
+		];
 		const legendaryFolders = legendaryFolderMap[traitType] || folders;
 
 		// First check traits folders
@@ -116,7 +143,12 @@ async function regenerateImage(metadata: any, character: CharacterType, outputIm
 		// Then check legendary folders
 		if (!layerPath) {
 			for (const folder of legendaryFolders) {
-				const legendaryPath = join(import.meta.dir, "../../assets/art/legendary", folder, fileName);
+				const legendaryPath = join(
+					import.meta.dir,
+					"../../assets/art/legendary",
+					folder,
+					fileName,
+				);
 				if (existsSync(legendaryPath)) {
 					layerPath = legendaryPath;
 					break;
@@ -127,11 +159,16 @@ async function regenerateImage(metadata: any, character: CharacterType, outputIm
 		if (layerPath) {
 			const layerName = traitType.toLowerCase().replace(/ /g, "_");
 			const zIndex = LAYER_ORDER.indexOf(
-				layerName === "shirt" ? "clothes" :
-				layerName === "necklace" ? "necklaces" :
-				layerName === "head_accessory" ? "head_acc" :
-				layerName === "hand_accessories" ? "hand_accessories" : // Render BEFORE side_hand (hand holds accessory)
-				layerName
+				layerName === "shirt"
+					? "clothes"
+					: layerName === "necklace"
+						? "necklaces"
+						: layerName === "head_accessory"
+							? "head_acc"
+							: layerName === "hand_accessories"
+								? "hand_accessories"
+								: // Render BEFORE side_hand (hand holds accessory)
+									layerName,
 			);
 			layers.push({ path: layerPath, zIndex: zIndex >= 0 ? zIndex : 99 });
 		}
@@ -150,7 +187,7 @@ async function regenerateImage(metadata: any, character: CharacterType, outputIm
 		const overlays = await Promise.all(
 			layers.slice(1).map(async (layer) => ({
 				input: await sharp(layer.path).toBuffer(),
-			}))
+			})),
 		);
 		composite = composite.composite(overlays);
 	}
@@ -162,8 +199,12 @@ async function redistributeShirts() {
 	console.log("=== SHIRT REDISTRIBUTION V3 ===\n");
 
 	// Get available shirts
-	const chogstarShirts = getAvailableShirts("chogstar").filter(s => !isLegendaryShirt(s));
-	const bearBunnyFoxShirts = getAvailableShirts("bear").filter(s => !isLegendaryShirt(s));
+	const chogstarShirts = getAvailableShirts("chogstar").filter(
+		(s) => !isLegendaryShirt(s),
+	);
+	const bearBunnyFoxShirts = getAvailableShirts("bear").filter(
+		(s) => !isLegendaryShirt(s),
+	);
 
 	console.log(`Chogstar common shirts: ${chogstarShirts.length}`);
 	console.log(`Bear/Bunny/Fox common shirts: ${bearBunnyFoxShirts.length}\n`);
@@ -175,12 +216,15 @@ async function redistributeShirts() {
 		const metadataPath = join(COMMON_PATH, char, "metadata");
 		if (!existsSync(metadataPath)) continue;
 
-		const files = readdirSync(metadataPath).filter(f => f.endsWith(".json"));
+		const files = readdirSync(metadataPath).filter((f) => f.endsWith(".json"));
 
 		for (const file of files) {
 			const metadata = await Bun.file(join(metadataPath, file)).json();
-			const shirtAttr = metadata.attributes.find((a: any) => a.trait_type === "Shirt");
-			const shirtName = shirtAttr?.value && shirtAttr.value !== "None" ? shirtAttr.value : null;
+			const shirtAttr = metadata.attributes.find(
+				(a: any) => a.trait_type === "Shirt",
+			);
+			const shirtName =
+				shirtAttr?.value && shirtAttr.value !== "None" ? shirtAttr.value : null;
 
 			allNFTs.push({
 				tokenId: file.replace(".json", ""),
@@ -192,18 +236,22 @@ async function redistributeShirts() {
 	}
 
 	// Process each character group
-	const allChanges: { nft: NFTInfo; newShirt: string; action: "add" | "change" }[] = [];
+	const allChanges: {
+		nft: NFTInfo;
+		newShirt: string;
+		action: "add" | "change";
+	}[] = [];
 
 	for (const groupName of ["chogstar", "bearBunnyFox"] as const) {
 		const isChogstar = groupName === "chogstar";
-		const nfts = allNFTs.filter(n =>
-			isChogstar ? n.character === "chogstar" : n.character !== "chogstar"
+		const nfts = allNFTs.filter((n) =>
+			isChogstar ? n.character === "chogstar" : n.character !== "chogstar",
 		);
 		const availableShirts = isChogstar ? chogstarShirts : bearBunnyFoxShirts;
 
 		// Calculate target based on total NFTs that CAN have shirts
-		const withShirt = nfts.filter(n => n.shirtName !== null);
-		const withoutShirt = nfts.filter(n => n.shirtName === null);
+		const withShirt = nfts.filter((n) => n.shirtName !== null);
+		const withoutShirt = nfts.filter((n) => n.shirtName === null);
 		const totalSlots = nfts.length; // All NFTs can potentially have a shirt
 		const targetPerShirt = Math.floor(totalSlots / availableShirts.length);
 
@@ -221,7 +269,9 @@ async function redistributeShirts() {
 		}
 		for (const nft of withShirt) {
 			if (nft.shirtName && !isLegendaryShirt(nft.shirtName)) {
-				const normalized = availableShirts.find(s => s.toLowerCase() === nft.shirtName!.toLowerCase());
+				const normalized = availableShirts.find(
+					(s) => s.toLowerCase() === nft.shirtName?.toLowerCase(),
+				);
 				if (normalized) {
 					shirtCounts[normalized] = (shirtCounts[normalized] || 0) + 1;
 				}
@@ -230,8 +280,12 @@ async function redistributeShirts() {
 
 		// Step 1: Assign shirts to NFTs without shirts
 		const needMore = availableShirts
-			.map(name => ({ name, current: shirtCounts[name], needed: Math.max(0, targetPerShirt - shirtCounts[name]) }))
-			.filter(s => s.needed > 0)
+			.map((name) => ({
+				name,
+				current: shirtCounts[name],
+				needed: Math.max(0, targetPerShirt - shirtCounts[name]),
+			}))
+			.filter((s) => s.needed > 0)
 			.sort((a, b) => b.needed - a.needed);
 
 		let assignedToEmpty = 0;
@@ -251,13 +305,21 @@ async function redistributeShirts() {
 
 		// Step 2: Redistribute from high-count to still-low-count
 		const canGive = availableShirts
-			.map(name => ({ name, current: shirtCounts[name], excess: Math.max(0, shirtCounts[name] - targetPerShirt) }))
-			.filter(s => s.excess > 0)
+			.map((name) => ({
+				name,
+				current: shirtCounts[name],
+				excess: Math.max(0, shirtCounts[name] - targetPerShirt),
+			}))
+			.filter((s) => s.excess > 0)
 			.sort((a, b) => b.excess - a.excess);
 
 		const stillNeedMore = availableShirts
-			.map(name => ({ name, current: shirtCounts[name], needed: Math.max(0, targetPerShirt - shirtCounts[name]) }))
-			.filter(s => s.needed > 0)
+			.map((name) => ({
+				name,
+				current: shirtCounts[name],
+				needed: Math.max(0, targetPerShirt - shirtCounts[name]),
+			}))
+			.filter((s) => s.needed > 0)
 			.sort((a, b) => b.needed - a.needed);
 
 		let redistributed = 0;
@@ -271,13 +333,18 @@ async function redistributeShirts() {
 
 				const toTake = Math.min(target.needed, available);
 
-				const nftsWithShirt = nfts.filter(n =>
-					n.shirtName?.toLowerCase() === source.name.toLowerCase() &&
-					!allChanges.some(c => c.nft.tokenId === n.tokenId)
+				const nftsWithShirt = nfts.filter(
+					(n) =>
+						n.shirtName?.toLowerCase() === source.name.toLowerCase() &&
+						!allChanges.some((c) => c.nft.tokenId === n.tokenId),
 				);
 
 				for (let i = 0; i < toTake && i < nftsWithShirt.length; i++) {
-					allChanges.push({ nft: nftsWithShirt[i], newShirt: target.name, action: "change" });
+					allChanges.push({
+						nft: nftsWithShirt[i],
+						newShirt: target.name,
+						action: "change",
+					});
 					shirtCounts[source.name]--;
 					shirtCounts[target.name]++;
 					target.needed--;
@@ -313,7 +380,9 @@ async function redistributeShirts() {
 
 		// Update metadata
 		const newMetadata = JSON.parse(JSON.stringify(nft.metadata));
-		let shirtAttr = newMetadata.attributes.find((a: any) => a.trait_type === "Shirt");
+		const shirtAttr = newMetadata.attributes.find(
+			(a: any) => a.trait_type === "Shirt",
+		);
 
 		if (action === "add") {
 			// Add shirt attribute
@@ -330,21 +399,33 @@ async function redistributeShirts() {
 		}
 
 		// Save metadata
-		const newMetadataPath = join(OUTPUT_PATH, nft.character, "metadata", `${nft.tokenId}.json`);
+		const newMetadataPath = join(
+			OUTPUT_PATH,
+			nft.character,
+			"metadata",
+			`${nft.tokenId}.json`,
+		);
 		writeFileSync(newMetadataPath, JSON.stringify(newMetadata, null, 2));
 
 		// Regenerate image
-		const newImagePath = join(OUTPUT_PATH, nft.character, "images", `${nft.tokenId}.png`);
+		const newImagePath = join(
+			OUTPUT_PATH,
+			nft.character,
+			"images",
+			`${nft.tokenId}.png`,
+		);
 		await regenerateImage(newMetadata, nft.character, newImagePath);
 
 		processed++;
 		if (processed % 100 === 0 || processed === allChanges.length) {
-			console.log(`  Processed ${processed}/${allChanges.length} (${((processed / allChanges.length) * 100).toFixed(1)}%)`);
+			console.log(
+				`  Processed ${processed}/${allChanges.length} (${((processed / allChanges.length) * 100).toFixed(1)}%)`,
+			);
 		}
 	}
 
 	// Save change log
-	const changeLog = allChanges.map(c => ({
+	const changeLog = allChanges.map((c) => ({
 		tokenId: c.nft.tokenId,
 		character: c.nft.character,
 		oldShirt: c.nft.shirtName || "None",
@@ -352,11 +433,14 @@ async function redistributeShirts() {
 		action: c.action,
 	}));
 
-	writeFileSync(join(OUTPUT_PATH, "redistribution_log.json"), JSON.stringify(changeLog, null, 2));
+	writeFileSync(
+		join(OUTPUT_PATH, "redistribution_log.json"),
+		JSON.stringify(changeLog, null, 2),
+	);
 
 	// Summary
-	const addCount = allChanges.filter(c => c.action === "add").length;
-	const changeCount = allChanges.filter(c => c.action === "change").length;
+	const addCount = allChanges.filter((c) => c.action === "add").length;
+	const changeCount = allChanges.filter((c) => c.action === "change").length;
 
 	console.log(`\n=== COMPLETE ===`);
 	console.log(`Added shirts: ${addCount}`);

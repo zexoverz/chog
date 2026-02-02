@@ -1,16 +1,15 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import { loadTraitDatabase, getTraitPath, printTraitSummary } from "./traits";
-import { SeededRandom, selectTraitsForNFT, generateDNAHash } from "./random";
-import { generateMetadata } from "./metadata";
 import {
-	COLLECTION_CONFIG,
-	LAYER_ORDER_COMMON,
-	LAYER_OFFSETS,
 	type CharacterType,
-	type NFTMetadata,
+	COLLECTION_CONFIG,
+	LAYER_OFFSETS,
+	LAYER_ORDER_COMMON,
 } from "./config";
+import { generateMetadata } from "./metadata";
+import { generateDNAHash, SeededRandom, selectTraitsForNFT } from "./random";
+import { getTraitPath, loadTraitDatabase, printTraitSummary } from "./traits";
 
 const OUTPUT_PATH = join(import.meta.dir, "../../output/common");
 const SEED = 12345;
@@ -19,13 +18,16 @@ const IMAGE_SIZE = 2048;
 // Distribution from config
 const TOTAL_COMMON = COLLECTION_CONFIG.distribution.common.count; // 5735
 const LEGENDARY_COUNT = COLLECTION_CONFIG.distribution.legendary.count; // 240
-const LEGENDARY_INHERIT_COUNT = COLLECTION_CONFIG.distribution.common.legendaryInheritCount; // 57
+const LEGENDARY_INHERIT_COUNT =
+	COLLECTION_CONFIG.distribution.common.legendaryInheritCount; // 57
 
 async function generateCommonFull() {
 	const startTime = Date.now();
 	console.log("=== Generating Full Common NFT Collection ===\n");
 	console.log(`Total to generate: ${TOTAL_COMMON}`);
-	console.log(`Token ID range: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + TOTAL_COMMON}`);
+	console.log(
+		`Token ID range: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + TOTAL_COMMON}`,
+	);
 	console.log(`Legendary inheritance: ${LEGENDARY_INHERIT_COUNT} (~1%)\n`);
 
 	// Load trait database
@@ -69,7 +71,9 @@ async function generateCommonFull() {
 		const count = perCharacter[character];
 		const legendaryCount = legendaryPerCharacter[character];
 
-		console.log(`\nGenerating ${count} ${character}s (${legendaryCount} with legendary inheritance)...`);
+		console.log(
+			`\nGenerating ${count} ${character}s (${legendaryCount} with legendary inheritance)...`,
+		);
 
 		let generated = 0;
 		let legendaryGenerated = 0;
@@ -77,10 +81,19 @@ async function generateCommonFull() {
 		const maxAttempts = count * 50;
 
 		while (generated < count && attempts < maxAttempts) {
-			const rng = new SeededRandom(SEED + characters.indexOf(character) * 10000 + attempts);
+			const rng = new SeededRandom(
+				SEED + characters.indexOf(character) * 10000 + attempts,
+			);
 
 			const legendaryInherit = legendaryGenerated < legendaryCount;
-			const selection = selectTraitsForNFT(db, character, "common", rng, undefined, legendaryInherit);
+			const selection = selectTraitsForNFT(
+				db,
+				character,
+				"common",
+				rng,
+				undefined,
+				legendaryInherit,
+			);
 			const dna = generateDNAHash(selection);
 
 			if (!seenDNA.has(dna)) {
@@ -93,7 +106,9 @@ async function generateCommonFull() {
 			attempts++;
 		}
 
-		console.log(`  Generated: ${generated}/${count}, Legendary: ${legendaryGenerated}/${legendaryCount}`);
+		console.log(
+			`  Generated: ${generated}/${count}, Legendary: ${legendaryGenerated}/${legendaryCount}`,
+		);
 	}
 
 	// Shuffle to mix characters
@@ -106,7 +121,9 @@ async function generateCommonFull() {
 		shuffled[i].tokenId = LEGENDARY_COUNT + i + 1;
 	}
 
-	console.log(`\nGenerating images and metadata for ${shuffled.length} NFTs...`);
+	console.log(
+		`\nGenerating images and metadata for ${shuffled.length} NFTs...`,
+	);
 	console.log(`This may take a while...\n`);
 
 	// Process in batches for better performance
@@ -122,22 +139,30 @@ async function generateCommonFull() {
 				await generateImage(selection, tokenId, character);
 
 				// Generate and save metadata
-				const metadata = generateMetadata(selection, tokenId, "ipfs://PLACEHOLDER/");
+				const metadata = generateMetadata(
+					selection,
+					tokenId,
+					"ipfs://PLACEHOLDER/",
+				);
 				const metadataPath = join(OUTPUT_PATH, "metadata", `${tokenId}.json`);
 				await Bun.write(metadataPath, JSON.stringify(metadata, null, 2));
-			})
+			}),
 		);
 
 		processedCount += batch.length;
 		const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 		const rate = (processedCount / parseFloat(elapsed)).toFixed(1);
-		console.log(`  Processed: ${processedCount}/${shuffled.length} (${rate}/s)`);
+		console.log(
+			`  Processed: ${processedCount}/${shuffled.length} (${rate}/s)`,
+		);
 	}
 
 	const totalTime = ((Date.now() - startTime) / 1000 / 60).toFixed(1);
 	console.log(`\n=== Generation Complete ===`);
 	console.log(`Total NFTs: ${shuffled.length}`);
-	console.log(`Token IDs: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + shuffled.length}`);
+	console.log(
+		`Token IDs: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + shuffled.length}`,
+	);
 	console.log(`Time: ${totalTime} minutes`);
 	console.log(`Output: ${OUTPUT_PATH}`);
 }
@@ -173,12 +198,16 @@ async function generateImage(
 		})),
 	);
 
-	let composite = sharp(baseLayer.path).resize(IMAGE_SIZE, IMAGE_SIZE, { fit: "fill" });
+	let composite = sharp(baseLayer.path).resize(IMAGE_SIZE, IMAGE_SIZE, {
+		fit: "fill",
+	});
 
 	if (resizedOverlays.length > 0) {
 		composite = composite.composite(
 			resizedOverlays.map(({ buffer, layer }) => {
-				const offset = (LAYER_OFFSETS as Record<string, { top: number; left: number }>)[layer] || { top: 0, left: 0 };
+				const offset = (
+					LAYER_OFFSETS as Record<string, { top: number; left: number }>
+				)[layer] || { top: 0, left: 0 };
 				return {
 					input: buffer,
 					top: offset.top,

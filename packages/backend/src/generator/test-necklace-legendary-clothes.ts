@@ -3,8 +3,14 @@ import { join } from "node:path";
 import sharp from "sharp";
 
 const ASSETS_PATH_COMMON = join(import.meta.dir, "../../assets/art/traits");
-const ASSETS_PATH_LEGENDARY = join(import.meta.dir, "../../assets/art/legendary");
-const OUTPUT_PATH = join(import.meta.dir, "../../output/necklace_legendary_clothes_test");
+const ASSETS_PATH_LEGENDARY = join(
+	import.meta.dir,
+	"../../assets/art/legendary",
+);
+const OUTPUT_PATH = join(
+	import.meta.dir,
+	"../../output/necklace_legendary_clothes_test",
+);
 const IMAGE_SIZE = 2048;
 
 async function generateNecklaceLegendaryClothesTest() {
@@ -15,12 +21,12 @@ async function generateNecklaceLegendaryClothesTest() {
 
 	// Get all necklaces
 	const necklacesDir = join(ASSETS_PATH_COMMON, "necklaces");
-	const necklaces = readdirSync(necklacesDir).filter(f => f.endsWith(".png"));
+	const necklaces = readdirSync(necklacesDir).filter((f) => f.endsWith(".png"));
 	console.log(`Found ${necklaces.length} necklaces\n`);
 
 	// Get legendary clothes
 	const clothesDir = join(ASSETS_PATH_LEGENDARY, "clothes");
-	const clothes = readdirSync(clothesDir).filter(f => f.endsWith(".png"));
+	const clothes = readdirSync(clothesDir).filter((f) => f.endsWith(".png"));
 	console.log(`Found ${clothes.length} legendary clothes\n`);
 
 	// Use bear common base
@@ -55,7 +61,10 @@ async function generateNecklaceLegendaryClothesTest() {
 				.png()
 				.toBuffer();
 
-			const outputPath = join(OUTPUT_PATH, `${clothe.replace(".png", "")}_${necklace}`);
+			const outputPath = join(
+				OUTPUT_PATH,
+				`${clothe.replace(".png", "")}_${necklace}`,
+			);
 
 			await sharp(baseBuffer)
 				.composite([

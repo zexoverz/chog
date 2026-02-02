@@ -7,24 +7,26 @@ const OUTPUT_PATH = join(import.meta.dir, "../../output/common/metadata");
 async function checkDuplicates() {
 	console.log("=== Checking for Duplicate NFTs ===\n");
 
-	const files = readdirSync(OUTPUT_PATH).filter(f => f.endsWith(".json"));
+	const files = readdirSync(OUTPUT_PATH).filter((f) => f.endsWith(".json"));
 	console.log(`Total NFTs to check: ${files.length}\n`);
 
 	const dnaMap = new Map<string, number[]>();
 
 	for (const file of files) {
-		const tokenId = parseInt(file.replace(".json", ""));
-		const metadata: NFTMetadata = await Bun.file(join(OUTPUT_PATH, file)).json();
+		const tokenId = parseInt(file.replace(".json", ""), 10);
+		const metadata: NFTMetadata = await Bun.file(
+			join(OUTPUT_PATH, file),
+		).json();
 
 		// Create DNA string from character + all traits
 		const traitParts = metadata.attributes
-			.map(attr => `${attr.trait_type}:${attr.value}`)
+			.map((attr) => `${attr.trait_type}:${attr.value}`)
 			.sort()
 			.join("|");
 		const dna = `${metadata.character}|${traitParts}`;
 
 		if (dnaMap.has(dna)) {
-			dnaMap.get(dna)!.push(tokenId);
+			dnaMap.get(dna)?.push(tokenId);
 		} else {
 			dnaMap.set(dna, [tokenId]);
 		}

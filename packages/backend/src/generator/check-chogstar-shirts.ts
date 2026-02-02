@@ -5,7 +5,7 @@ const COMMON_PATH = join(import.meta.dir, "../../output/common");
 
 async function checkChogstarShirts() {
 	const metadataPath = join(COMMON_PATH, "chogstar", "metadata");
-	const files = readdirSync(metadataPath).filter(f => f.endsWith(".json"));
+	const files = readdirSync(metadataPath).filter((f) => f.endsWith(".json"));
 
 	let withShirt = 0;
 	let withoutShirt = 0;
@@ -13,9 +13,11 @@ async function checkChogstarShirts() {
 
 	for (const file of files) {
 		const metadata = await Bun.file(join(metadataPath, file)).json();
-		const shirtAttr = metadata.attributes.find((a: any) => a.trait_type === "Shirt");
+		const shirtAttr = metadata.attributes.find(
+			(a: any) => a.trait_type === "Shirt",
+		);
 
-		if (shirtAttr && shirtAttr.value && shirtAttr.value !== "None") {
+		if (shirtAttr?.value && shirtAttr.value !== "None") {
 			withShirt++;
 			shirtCounts[shirtAttr.value] = (shirtCounts[shirtAttr.value] || 0) + 1;
 		} else {
@@ -41,8 +43,13 @@ async function checkChogstarShirts() {
 	console.log(`Max per shirt if evenly distributed: ~${maxPerShirt}`);
 
 	// Check available shirt assets
-	const shirtAssetPath = join(import.meta.dir, "../../assets/art/traits/shirt_chogstar");
-	const shirtAssets = readdirSync(shirtAssetPath).filter(f => f.endsWith(".png"));
+	const shirtAssetPath = join(
+		import.meta.dir,
+		"../../assets/art/traits/shirt_chogstar",
+	);
+	const shirtAssets = readdirSync(shirtAssetPath).filter((f) =>
+		f.endsWith(".png"),
+	);
 	console.log(`\nShirt assets available: ${shirtAssets.length}`);
 
 	const sorted = Object.entries(shirtCounts).sort((a, b) => a[1] - b[1]);
@@ -81,13 +88,17 @@ async function checkChogstarShirts() {
 
 	for (const char of ["bear", "bunny", "fox"]) {
 		const charMetadataPath = join(COMMON_PATH, char, "metadata");
-		const charFiles = readdirSync(charMetadataPath).filter(f => f.endsWith(".json"));
+		const charFiles = readdirSync(charMetadataPath).filter((f) =>
+			f.endsWith(".json"),
+		);
 
 		for (const file of charFiles) {
 			const metadata = await Bun.file(join(charMetadataPath, file)).json();
-			const shirtAttr = metadata.attributes.find((a: any) => a.trait_type === "Shirt");
+			const shirtAttr = metadata.attributes.find(
+				(a: any) => a.trait_type === "Shirt",
+			);
 
-			if (shirtAttr && shirtAttr.value && shirtAttr.value !== "None") {
+			if (shirtAttr?.value && shirtAttr.value !== "None") {
 				bbfWithShirt++;
 			} else {
 				bbfWithoutShirt++;

@@ -1,26 +1,23 @@
 import {
 	type CharacterType,
+	COLOR_MATCHING_COMMON,
+	COMMON_ASTRONAUT,
+	COMMON_HOODIES,
+	HEAD_ACC_BLOCKS_EYEGLASSES,
+	LAYER_ORDER_COMMON,
+	LAYER_ORDER_LEGENDARY,
 	type LayerType,
-	type LayerTypeLegendary,
-	type LayerTypeCommon,
+	LEGENDARY_BASE_HAND_PAIRING,
+	LEGENDARY_CLOTHES_BLOCKS_HEAD_ACC,
+	LEGENDARY_INHERITABLE_TRAITS,
+	OPTIONAL_LAYERS_COMMON,
+	OPTIONAL_LAYERS_LEGENDARY,
+	OPTIONAL_TRAIT_CHANCE_COMMON,
+	OPTIONAL_TRAIT_CHANCE_LEGENDARY,
 	type Rarity,
 	type TraitMetadata,
-	OPTIONAL_LAYERS_LEGENDARY,
-	OPTIONAL_LAYERS_COMMON,
-	OPTIONAL_TRAIT_CHANCE_LEGENDARY,
-	OPTIONAL_TRAIT_CHANCE_COMMON,
-	LAYER_ORDER_LEGENDARY,
-	LAYER_ORDER_COMMON,
-	COLOR_MATCHING_COMMON,
-	LEGENDARY_BASE_HAND_PAIRING,
-	LEGENDARY_INHERITABLE_TRAITS,
-	LEGENDARY_LASER_EYES,
-	LEGENDARY_CLOTHES_BLOCKS_HEAD_ACC,
-	COMMON_HOODIES,
-	COMMON_ASTRONAUT,
-	HEAD_ACC_BLOCKS_EYEGLASSES,
 } from "./config";
-import { type TraitDatabase, getTraitsForCharacter } from "./traits";
+import { getTraitsForCharacter, type TraitDatabase } from "./traits";
 
 // Seeded random number generator for reproducibility
 export class SeededRandom {
@@ -89,7 +86,7 @@ export function selectTraitsForNFT(
 	// Track inherited legendary traits for rule enforcement
 	let hasLegendaryEyes = false;
 	let hasLegendaryClothes = false;
-	let inheritedLegendaryLayers: Set<string> = new Set();
+	const inheritedLegendaryLayers: Set<string> = new Set();
 
 	// Track common shirt rules
 	let hasCommonHoodie = false; // Blocks head_acc
@@ -106,7 +103,10 @@ export function selectTraitsForNFT(
 		}
 		// Ensure at least one legendary trait is inherited
 		if (inheritedLegendaryLayers.size === 0) {
-			const randomIndex = rng.nextInt(0, LEGENDARY_INHERITABLE_TRAITS.length - 1);
+			const randomIndex = rng.nextInt(
+				0,
+				LEGENDARY_INHERITABLE_TRAITS.length - 1,
+			);
 			inheritedLegendaryLayers.add(LEGENDARY_INHERITABLE_TRAITS[randomIndex]);
 		}
 	}
@@ -116,27 +116,43 @@ export function selectTraitsForNFT(
 
 	// Only 1 accessory per NFT: "right" (hand+acc), "left" (side_hand+acc), or "no_hand" (accessories only)
 	const accessoryRoll = rng.next();
-	const accessoryType = accessoryRoll < 0.33 ? "right" : accessoryRoll < 0.66 ? "left" : "no_hand";
+	const accessoryType =
+		accessoryRoll < 0.33 ? "right" : accessoryRoll < 0.66 ? "left" : "no_hand";
 
 	// Check if accessory is present (optional)
-	const accChance = (optionalChance as Record<string, number>)[
-		accessoryType === "right" ? "hand_accessories" :
-		accessoryType === "left" ? "side_hand_accessories" : "accessories"
-	] ?? 50;
+	const accChance =
+		(optionalChance as Record<string, number>)[
+			accessoryType === "right"
+				? "hand_accessories"
+				: accessoryType === "left"
+					? "side_hand_accessories"
+					: "accessories"
+		] ?? 50;
 	const hasAccessory = rng.next() * 100 <= accChance;
 
 	for (const layer of layerOrder) {
 		// For common NFTs inheriting legendary traits
 		// Map "shirt" to "clothes" for inheritance check
 		const inheritCheckLayer = layer === "shirt" ? "clothes" : layer;
-		const shouldInheritLegendary = rarity === "common" && legendaryInherit && inheritedLegendaryLayers.has(inheritCheckLayer);
+		const shouldInheritLegendary =
+			rarity === "common" &&
+			legendaryInherit &&
+			inheritedLegendaryLayers.has(inheritCheckLayer);
 
 		// Get traits from appropriate source
 		let traits: TraitMetadata[];
 		if (shouldInheritLegendary && layer === "shirt") {
 			// Get legendary clothes for shirt layer
-			traits = getTraitsForCharacter(db, character, "clothes" as LayerType, "legendary");
-		} else if (shouldInheritLegendary && LEGENDARY_INHERITABLE_TRAITS.includes(layer as any)) {
+			traits = getTraitsForCharacter(
+				db,
+				character,
+				"clothes" as LayerType,
+				"legendary",
+			);
+		} else if (
+			shouldInheritLegendary &&
+			LEGENDARY_INHERITABLE_TRAITS.includes(layer as any)
+		) {
 			// Get legendary traits for this layer
 			traits = getTraitsForCharacter(db, character, layer, "legendary");
 		} else {
@@ -155,13 +171,19 @@ export function selectTraitsForNFT(
 		}
 
 		// Skip head_acc if legendary clothes, common hoodie, or astronaut are being used
-		if (layer === "head_acc" && (hasLegendaryClothes || hasCommonHoodie || hasAstronaut)) {
+		if (
+			layer === "head_acc" &&
+			(hasLegendaryClothes || hasCommonHoodie || hasAstronaut)
+		) {
 			selected.set(layer, null);
 			continue;
 		}
 
 		// Skip necklaces if legendary clothes, common hoodie, or astronaut are being used
-		if (layer === "necklaces" && (hasLegendaryClothes || hasCommonHoodie || hasAstronaut)) {
+		if (
+			layer === "necklaces" &&
+			(hasLegendaryClothes || hasCommonHoodie || hasAstronaut)
+		) {
 			selected.set(layer, null);
 			continue;
 		}
@@ -174,7 +196,13 @@ export function selectTraitsForNFT(
 
 		// Handle hand + accessories: only 1 accessory type per NFT
 		// Hand only exists if its accessory exists
-		const handAccLayers = ["hand", "hand_accessories", "side_hand", "side_hand_accessories", "accessories"];
+		const handAccLayers = [
+			"hand",
+			"hand_accessories",
+			"side_hand",
+			"side_hand_accessories",
+			"accessories",
+		];
 		if (handAccLayers.includes(layer)) {
 			// No accessory = no hand either
 			if (!hasAccessory) {
@@ -184,7 +212,9 @@ export function selectTraitsForNFT(
 
 			if (accessoryType === "right") {
 				// Right hand + hand_accessories only
-				if (["side_hand", "side_hand_accessories", "accessories"].includes(layer)) {
+				if (
+					["side_hand", "side_hand_accessories", "accessories"].includes(layer)
+				) {
 					selected.set(layer, null);
 					continue;
 				}
@@ -196,7 +226,14 @@ export function selectTraitsForNFT(
 				}
 			} else {
 				// No hand, only accessories
-				if (["hand", "hand_accessories", "side_hand", "side_hand_accessories"].includes(layer)) {
+				if (
+					[
+						"hand",
+						"hand_accessories",
+						"side_hand",
+						"side_hand_accessories",
+					].includes(layer)
+				) {
 					selected.set(layer, null);
 					continue;
 				}
@@ -217,7 +254,9 @@ export function selectTraitsForNFT(
 			const handPairing = LEGENDARY_BASE_HAND_PAIRING[selectedBaseFilename];
 
 			if (layer === "hand" && handPairing?.hand) {
-				const matchingTrait = traits.find((t) => t.filename === handPairing.hand);
+				const matchingTrait = traits.find(
+					(t) => t.filename === handPairing.hand,
+				);
 				if (matchingTrait) {
 					selected.set(layer, matchingTrait);
 					continue;
@@ -225,7 +264,9 @@ export function selectTraitsForNFT(
 			}
 
 			if (layer === "side_hand" && handPairing?.side_hand) {
-				const matchingTrait = traits.find((t) => t.filename === handPairing.side_hand);
+				const matchingTrait = traits.find(
+					(t) => t.filename === handPairing.side_hand,
+				);
 				if (matchingTrait) {
 					selected.set(layer, matchingTrait);
 					continue;
@@ -235,10 +276,13 @@ export function selectTraitsForNFT(
 
 		// For common rarity, match hand/side_hand to base color
 		if (rarity === "common" && selectedBaseFilename) {
-			const colorMatch = COLOR_MATCHING_COMMON[character]?.[selectedBaseFilename];
+			const colorMatch =
+				COLOR_MATCHING_COMMON[character]?.[selectedBaseFilename];
 
 			if (layer === "hand" && colorMatch?.hand) {
-				const matchingTrait = traits.find((t) => t.filename === colorMatch.hand);
+				const matchingTrait = traits.find(
+					(t) => t.filename === colorMatch.hand,
+				);
 				if (matchingTrait) {
 					selected.set(layer, matchingTrait);
 					continue;
@@ -246,7 +290,9 @@ export function selectTraitsForNFT(
 			}
 
 			if (layer === "side_hand" && colorMatch?.side_hand) {
-				const matchingTrait = traits.find((t) => t.filename === colorMatch.side_hand);
+				const matchingTrait = traits.find(
+					(t) => t.filename === colorMatch.side_hand,
+				);
 				if (matchingTrait) {
 					selected.set(layer, matchingTrait);
 					continue;
@@ -276,7 +322,11 @@ export function selectTraitsForNFT(
 			hasLegendaryEyes = true;
 		}
 		// Check if legendary clothes were selected - block head_acc
-		if (layer === "shirt" && trait.rarity === "legendary" && LEGENDARY_CLOTHES_BLOCKS_HEAD_ACC) {
+		if (
+			layer === "shirt" &&
+			trait.rarity === "legendary" &&
+			LEGENDARY_CLOTHES_BLOCKS_HEAD_ACC
+		) {
 			hasLegendaryClothes = true;
 		}
 
@@ -291,22 +341,36 @@ export function selectTraitsForNFT(
 		}
 
 		// If head_acc is a mask/scarf that blocks eyeglasses and legendary eyes
-		if (layer === "head_acc" && HEAD_ACC_BLOCKS_EYEGLASSES.includes(trait.filename)) {
+		if (
+			layer === "head_acc" &&
+			HEAD_ACC_BLOCKS_EYEGLASSES.includes(trait.filename)
+		) {
 			selected.set("eyeglasses", null);
 
 			// Also replace legendary eyes with common eyes
 			const currentEyes = selected.get("eyes");
 			if (currentEyes && currentEyes.rarity === "legendary") {
-				const commonEyes = getTraitsForCharacter(db, character, "eyes", "common");
+				const commonEyes = getTraitsForCharacter(
+					db,
+					character,
+					"eyes",
+					"common",
+				);
 				if (commonEyes.length > 0) {
-					const randomCommonEyes = commonEyes[rng.nextInt(0, commonEyes.length - 1)];
+					const randomCommonEyes =
+						commonEyes[rng.nextInt(0, commonEyes.length - 1)];
 					selected.set("eyes", randomCommonEyes);
 				}
 			}
 		}
 	}
 
-	return { character, rarity, traits: selected, hasLegendaryInheritance: legendaryInherit };
+	return {
+		character,
+		rarity,
+		traits: selected,
+		hasLegendaryInheritance: legendaryInherit,
+	};
 }
 
 export function generateDNAHash(selection: SelectedTraits): string {

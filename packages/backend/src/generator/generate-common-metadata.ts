@@ -1,22 +1,30 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { loadTraitDatabase, printTraitSummary } from "./traits";
-import { SeededRandom, selectTraitsForNFT, generateDNAHash } from "./random";
+import {
+	type CharacterType,
+	COLLECTION_CONFIG,
+	type NFTMetadata,
+} from "./config";
 import { generateMetadata } from "./metadata";
-import { COLLECTION_CONFIG, type CharacterType, type NFTMetadata } from "./config";
+import { generateDNAHash, SeededRandom, selectTraitsForNFT } from "./random";
+import { loadTraitDatabase, printTraitSummary } from "./traits";
 
 const OUTPUT_PATH = join(import.meta.dir, "../../output/common_full");
 const SEED = 12345;
 
 // Distribution from config
 const TOTAL_COMMON = COLLECTION_CONFIG.distribution.common.count; // 5735
-const LEGENDARY_INHERIT_PERCENT = COLLECTION_CONFIG.distribution.common.legendaryInheritPercentage; // 1%
-const LEGENDARY_INHERIT_COUNT = COLLECTION_CONFIG.distribution.common.legendaryInheritCount; // 57
+const LEGENDARY_INHERIT_PERCENT =
+	COLLECTION_CONFIG.distribution.common.legendaryInheritPercentage; // 1%
+const LEGENDARY_INHERIT_COUNT =
+	COLLECTION_CONFIG.distribution.common.legendaryInheritCount; // 57
 
 async function generateCommonMetadata() {
 	console.log("=== Generating Common NFT Metadata ===\n");
 	console.log(`Total to generate: ${TOTAL_COMMON}`);
-	console.log(`Legendary inheritance: ${LEGENDARY_INHERIT_COUNT} (${LEGENDARY_INHERIT_PERCENT}%)\n`);
+	console.log(
+		`Legendary inheritance: ${LEGENDARY_INHERIT_COUNT} (${LEGENDARY_INHERIT_PERCENT}%)\n`,
+	);
 
 	// Load trait database
 	console.log("Loading trait database...");
@@ -58,7 +66,9 @@ async function generateCommonMetadata() {
 		const count = perCharacter[character];
 		const legendaryCount = legendaryPerCharacter[character];
 
-		console.log(`\nGenerating ${count} common ${character}s (${legendaryCount} with legendary inheritance)...`);
+		console.log(
+			`\nGenerating ${count} common ${character}s (${legendaryCount} with legendary inheritance)...`,
+		);
 
 		let generated = 0;
 		let legendaryGenerated = 0;
@@ -66,12 +76,21 @@ async function generateCommonMetadata() {
 		const maxAttempts = count * 50;
 
 		while (generated < count && attempts < maxAttempts) {
-			const rng = new SeededRandom(SEED + characters.indexOf(character) * 10000 + attempts);
+			const rng = new SeededRandom(
+				SEED + characters.indexOf(character) * 10000 + attempts,
+			);
 
 			// Apply legendary inheritance to first N of each character
 			const legendaryInherit = legendaryGenerated < legendaryCount;
 
-			const selection = selectTraitsForNFT(db, character, "common", rng, undefined, legendaryInherit);
+			const selection = selectTraitsForNFT(
+				db,
+				character,
+				"common",
+				rng,
+				undefined,
+				legendaryInherit,
+			);
 			const dna = generateDNAHash(selection);
 
 			if (!seenDNA.has(dna)) {
@@ -84,10 +103,14 @@ async function generateCommonMetadata() {
 			attempts++;
 		}
 
-		console.log(`  Generated: ${generated}/${count}, Legendary: ${legendaryGenerated}/${legendaryCount}`);
+		console.log(
+			`  Generated: ${generated}/${count}, Legendary: ${legendaryGenerated}/${legendaryCount}`,
+		);
 
 		if (generated < count) {
-			console.warn(`  WARNING: Could not generate enough unique NFTs for ${character}`);
+			console.warn(
+				`  WARNING: Could not generate enough unique NFTs for ${character}`,
+			);
 		}
 	}
 
@@ -109,7 +132,11 @@ async function generateCommonMetadata() {
 	let processedCount = 0;
 
 	for (const { selection, tokenId } of shuffled) {
-		const metadata = generateMetadata(selection, tokenId, "ipfs://PLACEHOLDER/");
+		const metadata = generateMetadata(
+			selection,
+			tokenId,
+			"ipfs://PLACEHOLDER/",
+		);
 
 		const metadataPath = join(OUTPUT_PATH, "metadata", `${tokenId}.json`);
 		await Bun.write(metadataPath, JSON.stringify(metadata, null, 2));
@@ -145,8 +172,29 @@ async function generateCommonMetadata() {
 	let legendaryEyesCount = 0;
 	let legendaryEyesWithEyeglasses = 0;
 
-	const HOODIES = ["beige_hoodie.png", "black_hoodie.png", "chogstar_hoodie.png", "purple_hoodie.png", "stripes_hoodie.png", "white_hoodie.png", "gray__orange_striped_hoodie.png", "gray_hoodie.png"];
-	const MASKS = ["scarf.png", "black_mask_w_black_hair.png", "black_mask_with_hair.png", "black_mask.png", "blue_mask.png", "fur_mask.png", "gojo_mask.png", "pink_scarf.png", "red_mask.png", "washed_mask.png", "yapper_mask.png"];
+	const HOODIES = [
+		"beige_hoodie.png",
+		"black_hoodie.png",
+		"chogstar_hoodie.png",
+		"purple_hoodie.png",
+		"stripes_hoodie.png",
+		"white_hoodie.png",
+		"gray__orange_striped_hoodie.png",
+		"gray_hoodie.png",
+	];
+	const MASKS = [
+		"scarf.png",
+		"black_mask_w_black_hair.png",
+		"black_mask_with_hair.png",
+		"black_mask.png",
+		"blue_mask.png",
+		"fur_mask.png",
+		"gojo_mask.png",
+		"pink_scarf.png",
+		"red_mask.png",
+		"washed_mask.png",
+		"yapper_mask.png",
+	];
 
 	for (const { selection } of shuffled) {
 		perChar[selection.character] = (perChar[selection.character] || 0) + 1;
@@ -160,7 +208,8 @@ async function generateCommonMetadata() {
 				if (!legendaryTraitCounts[layer]) {
 					legendaryTraitCounts[layer] = {};
 				}
-				legendaryTraitCounts[layer][trait.filename] = (legendaryTraitCounts[layer][trait.filename] || 0) + 1;
+				legendaryTraitCounts[layer][trait.filename] =
+					(legendaryTraitCounts[layer][trait.filename] || 0) + 1;
 			}
 		}
 
@@ -179,7 +228,8 @@ async function generateCommonMetadata() {
 		if (shirtTrait && shirtTrait.filename === "astronaut.png") {
 			astronautCount++;
 			if (headAccTrait) astronautWithHeadAcc++;
-			if (eyesTrait && eyesTrait.rarity === "legendary") astronautWithLegendaryEyes++;
+			if (eyesTrait && eyesTrait.rarity === "legendary")
+				astronautWithLegendaryEyes++;
 		}
 
 		// Check masks/scarves
@@ -209,42 +259,68 @@ async function generateCommonMetadata() {
 	for (const [char, count] of Object.entries(perChar).sort()) {
 		const expected = perCharacter[char as CharacterType];
 		const pct = ((count / allMetadata.length) * 100).toFixed(2);
-		console.log(`${char}: ${count} (${pct}%) - Expected: ${expected} ${count === expected ? "✓" : "✗"}`);
+		console.log(
+			`${char}: ${count} (${pct}%) - Expected: ${expected} ${count === expected ? "✓" : "✗"}`,
+		);
 	}
 
 	console.log(`\n--- Legendary Inheritance ---`);
 	console.log(`Total with legendary traits: ${legendaryInheritCount}`);
 	console.log(`Expected: ${LEGENDARY_INHERIT_COUNT}`);
-	console.log(`Percentage: ${((legendaryInheritCount / allMetadata.length) * 100).toFixed(2)}%`);
+	console.log(
+		`Percentage: ${((legendaryInheritCount / allMetadata.length) * 100).toFixed(2)}%`,
+	);
 	console.log(`Expected percentage: ${LEGENDARY_INHERIT_PERCENT}%`);
-	console.log(`Match: ${legendaryInheritCount === LEGENDARY_INHERIT_COUNT ? "✓" : "✗"}`);
+	console.log(
+		`Match: ${legendaryInheritCount === LEGENDARY_INHERIT_COUNT ? "✓" : "✗"}`,
+	);
 
 	console.log(`\n--- Rule Enforcement Check ---`);
 	console.log(`Hoodies: ${hoodieCount} total`);
-	console.log(`  - With head_acc (violations): ${hoodieWithHeadAcc} ${hoodieWithHeadAcc === 0 ? "✓" : "✗"}`);
+	console.log(
+		`  - With head_acc (violations): ${hoodieWithHeadAcc} ${hoodieWithHeadAcc === 0 ? "✓" : "✗"}`,
+	);
 	console.log(`Astronauts: ${astronautCount} total`);
-	console.log(`  - With head_acc (violations): ${astronautWithHeadAcc} ${astronautWithHeadAcc === 0 ? "✓" : "✗"}`);
-	console.log(`  - With legendary eyes (violations): ${astronautWithLegendaryEyes} ${astronautWithLegendaryEyes === 0 ? "✓" : "✗"}`);
+	console.log(
+		`  - With head_acc (violations): ${astronautWithHeadAcc} ${astronautWithHeadAcc === 0 ? "✓" : "✗"}`,
+	);
+	console.log(
+		`  - With legendary eyes (violations): ${astronautWithLegendaryEyes} ${astronautWithLegendaryEyes === 0 ? "✓" : "✗"}`,
+	);
 	console.log(`Masks/Scarves: ${maskCount} total`);
-	console.log(`  - With eyeglasses (violations): ${maskWithEyeglasses} ${maskWithEyeglasses === 0 ? "✓" : "✗"}`);
+	console.log(
+		`  - With eyeglasses (violations): ${maskWithEyeglasses} ${maskWithEyeglasses === 0 ? "✓" : "✗"}`,
+	);
 	console.log(`Legendary Clothes: ${legendaryClothesCount} total`);
-	console.log(`  - With head_acc (violations): ${legendaryClothesWithHeadAcc} ${legendaryClothesWithHeadAcc === 0 ? "✓" : "✗"}`);
+	console.log(
+		`  - With head_acc (violations): ${legendaryClothesWithHeadAcc} ${legendaryClothesWithHeadAcc === 0 ? "✓" : "✗"}`,
+	);
 	console.log(`Legendary Eyes: ${legendaryEyesCount} total`);
-	console.log(`  - With eyeglasses (violations): ${legendaryEyesWithEyeglasses} ${legendaryEyesWithEyeglasses === 0 ? "✓" : "✗"}`);
+	console.log(
+		`  - With eyeglasses (violations): ${legendaryEyesWithEyeglasses} ${legendaryEyesWithEyeglasses === 0 ? "✓" : "✗"}`,
+	);
 
 	// Print legendary trait breakdown
 	console.log(`\n--- Legendary Traits Breakdown ---`);
 	for (const [layer, traits] of Object.entries(legendaryTraitCounts).sort()) {
 		const totalInLayer = Object.values(traits).reduce((a, b) => a + b, 0);
-		console.log(`\n${layer}: ${totalInLayer} total (${((totalInLayer / allMetadata.length) * 100).toFixed(2)}%)`);
-		for (const [traitName, count] of Object.entries(traits).sort((a, b) => b[1] - a[1])) {
-			console.log(`  - ${traitName}: ${count} (${((count / allMetadata.length) * 100).toFixed(2)}%)`);
+		console.log(
+			`\n${layer}: ${totalInLayer} total (${((totalInLayer / allMetadata.length) * 100).toFixed(2)}%)`,
+		);
+		for (const [traitName, count] of Object.entries(traits).sort(
+			(a, b) => b[1] - a[1],
+		)) {
+			console.log(
+				`  - ${traitName}: ${count} (${((count / allMetadata.length) * 100).toFixed(2)}%)`,
+			);
 		}
 	}
 
 	console.log(`\n${"=".repeat(60)}`);
 	console.log(`Metadata saved to: output/common_full/metadata/`);
-	console.log(`Token IDs: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + allMetadata.length}`);
+	console.log(
+		`Token IDs: ${LEGENDARY_COUNT + 1} - ${LEGENDARY_COUNT + allMetadata.length}`,
+	);
 }
 
 generateCommonMetadata().catch(console.error);

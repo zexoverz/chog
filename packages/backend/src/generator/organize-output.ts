@@ -1,4 +1,4 @@
-import { readFileSync, mkdirSync, copyFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const OUTPUT_PATH = join(import.meta.dir, "../../output");

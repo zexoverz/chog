@@ -1,23 +1,24 @@
 import { readdir } from "node:fs/promises";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import {
+	CHARACTER_TRAITS_COMMON,
+	CHARACTER_TRAITS_LEGENDARY,
 	type CharacterType,
 	type LayerType,
-	type LayerTypeLegendary,
 	type LayerTypeCommon,
-	type Rarity,
-	type TraitMetadata,
-	CHARACTER_TRAITS_LEGENDARY,
-	CHARACTER_TRAITS_COMMON,
-	SHARED_TRAITS_LEGENDARY,
-	SHARED_TRAITS_COMMON,
+	type LayerTypeLegendary,
 	LEGENDARY_BASE_FILES,
-	LAYER_ORDER_LEGENDARY,
-	LAYER_ORDER_COMMON,
+	type Rarity,
+	SHARED_TRAITS_COMMON,
+	SHARED_TRAITS_LEGENDARY,
+	type TraitMetadata,
 } from "./config";
 
 const ASSETS_PATH_COMMON = join(import.meta.dir, "../../assets/art/traits");
-const ASSETS_PATH_LEGENDARY = join(import.meta.dir, "../../assets/art/legendary");
+const ASSETS_PATH_LEGENDARY = join(
+	import.meta.dir,
+	"../../assets/art/legendary",
+);
 
 export interface TraitDatabase {
 	legendary: {

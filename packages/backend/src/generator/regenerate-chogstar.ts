@@ -1,10 +1,10 @@
-import { readFileSync, writeFileSync, copyFileSync } from "node:fs";
+import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadTraitDatabase } from "./traits";
-import { selectTraitsForNFT, SeededRandom } from "./random";
+import type { NFTMetadata } from "./config";
 import { generateImage } from "./image";
 import { generateMetadata } from "./metadata";
-import type { NFTMetadata } from "./config";
+import { SeededRandom, selectTraitsForNFT } from "./random";
+import { loadTraitDatabase } from "./traits";
 
 const OUTPUT_PATH = join(import.meta.dir, "../../output");
 
@@ -24,7 +24,9 @@ async function regenerateChogstars() {
 	// Pick first 30 to regenerate with illuminate base
 	const toRegenerate = chogstarCollection.slice(0, 30);
 
-	console.log(`Regenerating ${toRegenerate.length} chogstars with illuminate base...`);
+	console.log(
+		`Regenerating ${toRegenerate.length} chogstars with illuminate base...`,
+	);
 
 	// Load trait database
 	const traitDb = await loadTraitDatabase();
@@ -58,7 +60,11 @@ async function regenerateChogstars() {
 
 		// Save metadata
 		const metadataPath = join(OUTPUT_PATH, "metadata", `${tokenId}.json`);
-		const chogstarMetadataPath = join(OUTPUT_PATH, "chogstar/metadata", `${tokenId}.json`);
+		const chogstarMetadataPath = join(
+			OUTPUT_PATH,
+			"chogstar/metadata",
+			`${tokenId}.json`,
+		);
 
 		// Clean metadata for public use
 		const cleanMetadata = {
@@ -77,7 +83,9 @@ async function regenerateChogstars() {
 			fullCollection[fullIndex] = metadata;
 		}
 
-		const chogstarIndex = chogstarCollection.findIndex((n) => n.tokenId === tokenId);
+		const chogstarIndex = chogstarCollection.findIndex(
+			(n) => n.tokenId === tokenId,
+		);
 		if (chogstarIndex !== -1) {
 			chogstarCollection[chogstarIndex] = metadata;
 		}

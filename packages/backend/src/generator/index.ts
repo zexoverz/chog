@@ -1,6 +1,6 @@
 export * from "./config";
-export * from "./traits";
-export * from "./random";
+export { generateCollection } from "./generate";
 export * from "./image";
 export * from "./metadata";
-export { generateCollection } from "./generate";
+export * from "./random";
+export * from "./traits";

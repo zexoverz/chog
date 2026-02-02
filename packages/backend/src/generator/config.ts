@@ -63,9 +63,7 @@ export const COMMON_HOODIES = [
 ];
 
 // Common shirts that are astronaut suits (block head_acc AND legendary eyes)
-export const COMMON_ASTRONAUT = [
-	"astronaut.png",
-];
+export const COMMON_ASTRONAUT = ["astronaut.png"];
 
 // Head accessories that block eyeglasses (masks and scarves covering face)
 export const HEAD_ACC_BLOCKS_EYEGLASSES = [
@@ -157,17 +155,44 @@ export const OPTIONAL_TRAIT_CHANCE_COMMON: Partial<
 
 // Base to hand pairing for legendary
 // illuminate bases use golden/flame hands, translucent bases use lunar/spirit hands
-export const LEGENDARY_BASE_HAND_PAIRING: Record<string, { hand: string; side_hand: string }> = {
+export const LEGENDARY_BASE_HAND_PAIRING: Record<
+	string,
+	{ hand: string; side_hand: string }
+> = {
 	// Illuminate style
-	"illuminate_bear.png": { hand: "golden_hands.png", side_hand: "hand_flame.png" },
-	"illuminate_bunny.png": { hand: "golden_hands.png", side_hand: "hand_flame.png" },
-	"illuminate_fox.png": { hand: "golden_hands.png", side_hand: "hand_flame.png" },
-	"illuminate_chogstars.png": { hand: "golden_hands.png", side_hand: "hand_flame.png" },
+	"illuminate_bear.png": {
+		hand: "golden_hands.png",
+		side_hand: "hand_flame.png",
+	},
+	"illuminate_bunny.png": {
+		hand: "golden_hands.png",
+		side_hand: "hand_flame.png",
+	},
+	"illuminate_fox.png": {
+		hand: "golden_hands.png",
+		side_hand: "hand_flame.png",
+	},
+	"illuminate_chogstars.png": {
+		hand: "golden_hands.png",
+		side_hand: "hand_flame.png",
+	},
 	// Translucent style
-	"bear_translucent.png": { hand: "lunar_hand.png", side_hand: "hand_spirit.png" },
-	"bunny_translucent.png": { hand: "lunar_hand.png", side_hand: "hand_spirit.png" },
-	"fox_translucent.png": { hand: "lunar_hand.png", side_hand: "hand_spirit.png" },
-	"chogstars_translucent.png": { hand: "lunar_hand.png", side_hand: "hand_spirit.png" },
+	"bear_translucent.png": {
+		hand: "lunar_hand.png",
+		side_hand: "hand_spirit.png",
+	},
+	"bunny_translucent.png": {
+		hand: "lunar_hand.png",
+		side_hand: "hand_spirit.png",
+	},
+	"fox_translucent.png": {
+		hand: "lunar_hand.png",
+		side_hand: "hand_spirit.png",
+	},
+	"chogstars_translucent.png": {
+		hand: "lunar_hand.png",
+		side_hand: "hand_spirit.png",
+	},
 };
 
 // Legendary character-specific trait folders
@@ -263,12 +288,24 @@ export const COLOR_MATCHING_COMMON: Record<
 	Record<string, { hand: string; side_hand: string }>
 > = {
 	bear: {
-		"brown.png": { hand: "chocolate_brown.png", side_hand: "chocolate_brown.png" },
+		"brown.png": {
+			hand: "chocolate_brown.png",
+			side_hand: "chocolate_brown.png",
+		},
 		"gray.png": { hand: "medium_grey.png", side_hand: "medium_grey.png" },
-		"grey_and_black.png": { hand: "light_mint_grey.png", side_hand: "light_mint_grey.png" },
-		"mustard.png": { hand: "mustard_yellow.png", side_hand: "mustard_yellow.png" },
+		"grey_and_black.png": {
+			hand: "light_mint_grey.png",
+			side_hand: "light_mint_grey.png",
+		},
+		"mustard.png": {
+			hand: "mustard_yellow.png",
+			side_hand: "mustard_yellow.png",
+		},
 		"purple.png": { hand: "pale_lavender.png", side_hand: "pale_lavender.png" },
-		"white_and_dark_gray.png": { hand: "off-white.png", side_hand: "off-white.png" },
+		"white_and_dark_gray.png": {
+			hand: "off-white.png",
+			side_hand: "off-white.png",
+		},
 	},
 	bunny: {
 		"black.png": { hand: "black.png", side_hand: "black.png" },
@@ -276,7 +313,10 @@ export const COLOR_MATCHING_COMMON: Record<
 		"dark_brown.png": { hand: "dark_brown.png", side_hand: "dark_brown.png" },
 		"devil_bunny.png": { hand: "devil_bunny_hand.png", side_hand: "pink.png" },
 		"light_brown.png": { hand: "brown.png", side_hand: "brown.png" },
-		"mustard.png": { hand: "mustard_yellow.png", side_hand: "mustard_yellow.png" },
+		"mustard.png": {
+			hand: "mustard_yellow.png",
+			side_hand: "mustard_yellow.png",
+		},
 		"pink.png": { hand: "mauve_pink.png", side_hand: "mauve_pink.png" },
 		"sage.png": { hand: "sage_green.png", side_hand: "sage_green.png" },
 		"white.png": { hand: "light_grey.png", side_hand: "light_grey.png" },
@@ -297,7 +337,10 @@ export const COLOR_MATCHING_COMMON: Record<
 		"pink.png": { hand: "pink.png", side_hand: "pink.png" },
 		"pitch_black.png": { hand: "deep_black.png", side_hand: "deep_black.png" },
 		"purple.png": { hand: "purple.png", side_hand: "purple.png" },
-		"smoke.png": { hand: "charcoal_black.png", side_hand: "charcoal_black.png" },
+		"smoke.png": {
+			hand: "charcoal_black.png",
+			side_hand: "charcoal_black.png",
+		},
 		"white.png": { hand: "pure_white.png", side_hand: "pure_white.png" },
 	},
 };
@@ -307,7 +350,9 @@ export const LEGENDARY_HAND_MATCHING = false;
 
 // Layer position offsets (in pixels, for 2048x2048 canvas)
 // Use this to adjust positioning of specific layers
-export const LAYER_OFFSETS: Partial<Record<LayerType, { top: number; left: number }>> = {
+export const LAYER_OFFSETS: Partial<
+	Record<LayerType, { top: number; left: number }>
+> = {
 	// Adjust side_hand position to align with side_hand_accessories
 	// Positive values move down/right, negative values move up/left
 	side_hand: { top: 0, left: 0 },

@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { COLOR_MATCHING_COMMON, type CharacterType } from "./config";
+import { type CharacterType, COLOR_MATCHING_COMMON } from "./config";
 
 const ASSETS_PATH = join(import.meta.dir, "../../assets/art/traits");
 
@@ -23,7 +23,9 @@ for (const char of characters) {
 
 	// Get actual side_hand files
 	const sideHandDir = join(ASSETS_PATH, `side_hand_${char}`);
-	const sideHandFiles = readdirSync(sideHandDir).filter((f) => f.endsWith(".png"));
+	const sideHandFiles = readdirSync(sideHandDir).filter((f) =>
+		f.endsWith(".png"),
+	);
 
 	console.log(`  Base files: ${baseFiles.length}`);
 	console.log(`  Hand files: ${handFiles.length}`);
@@ -86,7 +88,7 @@ for (const char of characters) {
 	}
 }
 
-console.log("\n" + "=".repeat(50));
+console.log(`\n${"=".repeat(50)}`);
 if (hasErrors) {
 	console.log("❌ Coverage test FAILED - fix issues above");
 } else {

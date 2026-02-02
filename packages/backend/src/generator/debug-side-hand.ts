@@ -10,13 +10,17 @@ async function findSideHandExamples() {
 
 	for (const char of ["bear", "bunny", "fox", "chogstar"] as const) {
 		const metadataPath = join(COMMON_PATH, char, "metadata");
-		const files = readdirSync(metadataPath).filter(f => f.endsWith(".json"));
+		const files = readdirSync(metadataPath).filter((f) => f.endsWith(".json"));
 
 		for (const file of files) {
 			const metadata = await Bun.file(join(metadataPath, file)).json();
 
-			const sideHand = metadata.attributes.find((a: any) => a.trait_type === "Side Hand");
-			const handAcc = metadata.attributes.find((a: any) => a.trait_type === "Hand Accessories");
+			const sideHand = metadata.attributes.find(
+				(a: any) => a.trait_type === "Side Hand",
+			);
+			const handAcc = metadata.attributes.find(
+				(a: any) => a.trait_type === "Hand Accessories",
+			);
 
 			if (sideHand) sideHandCount++;
 			if (handAcc) handAccCount++;
@@ -28,7 +32,8 @@ async function findSideHandExamples() {
 				console.log("  All attributes:");
 				for (const attr of metadata.attributes) {
 					if (attr.trait_type !== "Rarity" && attr.trait_type !== "Character") {
-						const marker = attr.trait_type === "Side Hand" ? " <-- SIDE HAND" : "";
+						const marker =
+							attr.trait_type === "Side Hand" ? " <-- SIDE HAND" : "";
 						console.log(`    ${attr.trait_type}: ${attr.value}${marker}`);
 					}
 				}

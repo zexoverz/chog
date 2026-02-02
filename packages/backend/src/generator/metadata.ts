@@ -1,11 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
-	type NFTMetadata,
-	type LayerType,
-	type Rarity,
-	LAYER_ORDER_LEGENDARY,
 	LAYER_ORDER_COMMON,
+	LAYER_ORDER_LEGENDARY,
+	type LayerType,
+	type NFTMetadata,
 } from "./config";
 import type { SelectedTraits } from "./random";
 
@@ -51,8 +50,7 @@ export function generateMetadata(
 	// Add character type
 	attributes.push({
 		trait_type: "Character",
-		value:
-			CHARACTER_DISPLAY_NAMES[selection.character] || selection.character,
+		value: CHARACTER_DISPLAY_NAMES[selection.character] || selection.character,
 	});
 
 	const layerOrder =
@@ -201,7 +199,9 @@ export async function saveRarityReportCSV(
 
 	// Character Distribution
 	lines.push("# Character Distribution");
-	for (const [character, count] of Object.entries(report.characterDistribution)) {
+	for (const [character, count] of Object.entries(
+		report.characterDistribution,
+	)) {
 		const pct = ((count / report.totalSupply) * 100).toFixed(2);
 		lines.push(`Character,${character},${count},${pct}%`);
 	}
@@ -209,7 +209,9 @@ export async function saveRarityReportCSV(
 
 	// Rarity by Character
 	lines.push("# Rarity by Character");
-	for (const [character, rarities] of Object.entries(report.rarityByCharacter)) {
+	for (const [character, rarities] of Object.entries(
+		report.rarityByCharacter,
+	)) {
 		for (const [rarity, count] of Object.entries(rarities)) {
 			const pct = ((count / report.totalSupply) * 100).toFixed(2);
 			lines.push(`${character},${rarity},${count},${pct}%`);

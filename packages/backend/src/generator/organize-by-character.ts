@@ -1,6 +1,6 @@
-import { mkdirSync, readdirSync, copyFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { NFTMetadata, CharacterType } from "./config";
+import type { CharacterType, NFTMetadata } from "./config";
 
 const INPUT_PATH = join(import.meta.dir, "../../output/common");
 const OUTPUT_PATH = join(import.meta.dir, "../../output/common");
@@ -18,7 +18,7 @@ async function organizeByCharacter() {
 
 	// Read all metadata files
 	const metadataDir = join(INPUT_PATH, "metadata");
-	const files = readdirSync(metadataDir).filter(f => f.endsWith(".json"));
+	const files = readdirSync(metadataDir).filter((f) => f.endsWith(".json"));
 
 	console.log(`Processing ${files.length} NFTs...\n`);
 
@@ -34,7 +34,9 @@ async function organizeByCharacter() {
 
 	for (const file of files) {
 		const tokenId = file.replace(".json", "");
-		const metadata: NFTMetadata = await Bun.file(join(metadataDir, file)).json();
+		const metadata: NFTMetadata = await Bun.file(
+			join(metadataDir, file),
+		).json();
 		const character = metadata.character as CharacterType;
 
 		// Copy metadata to character folder
@@ -57,7 +59,10 @@ async function organizeByCharacter() {
 	// Save collection.json for each character
 	for (const char of characters) {
 		const collectionPath = join(OUTPUT_PATH, char, "collection.json");
-		writeFileSync(collectionPath, JSON.stringify(characterCollections[char], null, 2));
+		writeFileSync(
+			collectionPath,
+			JSON.stringify(characterCollections[char], null, 2),
+		);
 		console.log(`  ${char}: ${characterCounts[char]} NFTs`);
 	}
 
