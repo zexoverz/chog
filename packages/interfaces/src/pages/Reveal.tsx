@@ -222,11 +222,17 @@ export function Reveal() {
     setRevealState("idle");
     setRevealResults(null);
 
+    // Gas varies due to Fisher-Yates shuffle randomness - add 50% buffer
+    // ~200k gas per token base + buffer
+    const estimatedGas = BigInt(tokensToReveal.length) * 200000n;
+    const gasWithBuffer = (estimatedGas * 150n) / 100n; // 1.5x buffer
+
     writeContract({
       address: BLINDBOX_ADDRESS,
       abi: blindBoxAbi,
       functionName: "redeemBlindBoxes",
       args: [tokensToReveal],
+      gas: gasWithBuffer,
     });
   };
 
