@@ -34,6 +34,9 @@ const mintService = new MintService({
 		(process.env.MINT_SIGNER_PRIVATE_KEY as `0x${string}`) ||
 		(process.env.SIGNER_PRIVATE_KEY as `0x${string}`) ||
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
+	blindBoxAddress:
+		(process.env.BLINDBOX_ADDRESS as Address) ||
+		"0xEaB0Cb3bF45F7D8b27dFbb7E1390Bf4a10510dBF",
 	adminAddresses: process.env.ADMIN_ADDRESSES
 		? (process.env.ADMIN_ADDRESSES.split(",") as Address[])
 		: [],

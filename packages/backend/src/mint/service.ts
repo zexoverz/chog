@@ -1,8 +1,34 @@
 import type { Address, Hex } from "viem";
-import { getAddress } from "viem";
+import { createPublicClient, getAddress, http } from "viem";
+import { monadTestnet } from "viem/chains";
 import { MINT_CONFIG, type MintPhase } from "./config";
 import { BlindBoxMintSigner } from "./signer";
 import { WhitelistManager } from "./whitelist";
+
+// BlindBox contract ABI (only currentPhase needed)
+const blindBoxPhaseAbi = [
+	{
+		inputs: [],
+		name: "currentPhase",
+		outputs: [
+			{ internalType: "enum BlindBox.MintPhase", name: "", type: "uint8" },
+		],
+		stateMutability: "view",
+		type: "function",
+	},
+] as const;
+
+// On-chain phase enum: 0=CLOSED, 1=PRESALE, 2=STARLIST, 3=FCFS
+// Backend mapping:
+//   Contract PRESALE (1) → backend "starlist" (uses presaleMint on-chain)
+//   Contract STARLIST (2) → backend "fcfs" (uses starlistMint on-chain)
+//   Contract FCFS (3) → no signature needed
+const ONCHAIN_PHASE_MAP: Record<number, MintPhase> = {
+	0: MINT_CONFIG.PHASES.NOT_STARTED,
+	1: MINT_CONFIG.PHASES.STARLIST,
+	2: MINT_CONFIG.PHASES.FCFS,
+	3: MINT_CONFIG.PHASES.ENDED, // FCFS on-chain needs no sig, treat as ended for backend
+};
 
 export interface MintStatus {
 	phase: MintPhase;
@@ -34,6 +60,7 @@ export interface SignatureResult {
 
 export interface MintServiceConfig {
 	signerPrivateKey: Hex;
+	blindBoxAddress: Address;
 	adminAddresses?: Address[];
 	phaseOverride?: MintPhase;
 	starlistStartTime?: number;
@@ -60,6 +87,10 @@ export class MintService {
 	private starlistEndTime: number;
 	private fcfsStartTime: number;
 	private fcfsEndTime: number;
+	private blindBoxAddress: Address;
+	private publicClient: ReturnType<typeof createPublicClient>;
+	private cachedPhase: MintPhase = MINT_CONFIG.PHASES.NOT_STARTED;
+	private lastPhaseFetch = 0;
 
 	constructor(config: MintServiceConfig) {
 		this.signer = new BlindBoxMintSigner({
@@ -79,6 +110,15 @@ export class MintService {
 		this.starlistEndTime = config.starlistEndTime || 0;
 		this.fcfsStartTime = config.fcfsStartTime || 0;
 		this.fcfsEndTime = config.fcfsEndTime || 0;
+
+		this.blindBoxAddress = config.blindBoxAddress;
+		this.publicClient = createPublicClient({
+			chain: monadTestnet,
+			transport: http(),
+		});
+
+		// Fetch phase immediately on start
+		this.fetchOnChainPhase();
 	}
 
 	get signerAddress(): Address {
@@ -90,36 +130,38 @@ export class MintService {
 	// ==================
 
 	/**
-	 * Get current mint phase based on time
+	 * Fetch current phase from on-chain contract
+	 */
+	private async fetchOnChainPhase(): Promise<void> {
+		try {
+			const phase = await this.publicClient.readContract({
+				address: this.blindBoxAddress,
+				abi: blindBoxPhaseAbi,
+				functionName: "currentPhase",
+			});
+			this.cachedPhase =
+				ONCHAIN_PHASE_MAP[phase as number] ?? MINT_CONFIG.PHASES.NOT_STARTED;
+			this.lastPhaseFetch = Date.now();
+			console.log(`[MintService] On-chain phase: ${phase} → ${this.cachedPhase}`);
+		} catch (err) {
+			console.error("[MintService] Failed to fetch on-chain phase:", err);
+		}
+	}
+
+	/**
+	 * Get current mint phase from on-chain contract (cached for 10s)
 	 */
 	getCurrentPhase(): MintPhase {
 		if (this.phaseOverride) {
 			return this.phaseOverride;
 		}
 
-		const now = Math.floor(Date.now() / 1000);
-
-		if (
-			this.starlistStartTime > 0 &&
-			now >= this.starlistStartTime &&
-			now < this.starlistEndTime
-		) {
-			return MINT_CONFIG.PHASES.STARLIST;
+		// Refresh cache in background if stale (>10s)
+		if (Date.now() - this.lastPhaseFetch > 10_000) {
+			this.fetchOnChainPhase();
 		}
 
-		if (
-			this.fcfsStartTime > 0 &&
-			now >= this.fcfsStartTime &&
-			now < this.fcfsEndTime
-		) {
-			return MINT_CONFIG.PHASES.FCFS;
-		}
-
-		if (this.fcfsEndTime > 0 && now >= this.fcfsEndTime) {
-			return MINT_CONFIG.PHASES.ENDED;
-		}
-
-		return MINT_CONFIG.PHASES.NOT_STARTED;
+		return this.cachedPhase;
 	}
 
 	/**
