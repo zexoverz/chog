@@ -8,8 +8,7 @@ export {
 } from "./service";
 export {
 	BlindBoxMintSigner,
-	type FcfsSignature,
-	type PresaleSignature,
+	type MintSignature,
 } from "./signer";
 export {
 	type FcfsEntry,

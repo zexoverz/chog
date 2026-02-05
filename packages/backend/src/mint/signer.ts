@@ -12,14 +12,9 @@ export interface MintSignerConfig {
 	privateKey: Hex;
 }
 
-export interface PresaleSignature {
-	amount: number;
+export interface MintSignature {
 	maxAllowed: number;
-	address: Address;
-	signature: Hex;
-}
-
-export interface FcfsSignature {
+	phase: string;
 	address: Address;
 	signature: Hex;
 }
@@ -28,8 +23,10 @@ export interface FcfsSignature {
  * MintSigner generates signatures for BlindBox contract minting
  *
  * The BlindBox contract uses ECDSA signatures to verify mint eligibility:
- * - Presale/Starlist: keccak256(abi.encodePacked(amount, msg.sender, maxAllowedForPresaleForAddr))
- * - FCFS/Auction: keccak256(abi.encodePacked(msg.sender))
+ * - _verifySignature: keccak256(abi.encodePacked(address minter, uint16 maxAllowed, string phase))
+ * - presaleMint verifies with phase = "PRESALE"
+ * - starlistMint verifies with phase = "STARLIST"
+ * - fcfsMint does NOT require a signature
  */
 export class BlindBoxMintSigner {
 	private account: PrivateKeyAccount;
@@ -43,20 +40,22 @@ export class BlindBoxMintSigner {
 	}
 
 	/**
-	 * Sign a presale/starlist mint request
-	 * Contract verifies: keccak256(abi.encodePacked(amount, msg.sender, maxAllowedForPresaleForAddr))
+	 * Sign a mint request matching the contract's _verifySignature
+	 * Contract verifies: keccak256(abi.encodePacked(address minter, uint16 maxAllowed, string phase))
+	 *
+	 * @param minterAddress - The wallet address minting
+	 * @param maxAllowed - Max allocation for the address (uint16)
+	 * @param phase - Contract phase string: "PRESALE" or "STARLIST"
 	 */
-	async signPresaleMint(
+	async signMint(
 		minterAddress: Address,
-		amount: number,
 		maxAllowed: number,
-	): Promise<PresaleSignature> {
-		// Match contract's abi.encodePacked(amount, msg.sender, maxAllowedForPresaleForAddr)
-		// amount and maxAllowed are uint16 in the contract
+		phase: string,
+	): Promise<MintSignature> {
 		const messageHash = keccak256(
 			encodePacked(
-				["uint16", "address", "uint16"],
-				[amount, minterAddress, maxAllowed],
+				["address", "uint16", "string"],
+				[minterAddress, maxAllowed, phase],
 			),
 		);
 
@@ -66,27 +65,8 @@ export class BlindBoxMintSigner {
 		});
 
 		return {
-			amount,
 			maxAllowed,
-			address: minterAddress,
-			signature,
-		};
-	}
-
-	/**
-	 * Sign a FCFS/auction mint request
-	 * Contract verifies: keccak256(abi.encodePacked(msg.sender))
-	 */
-	async signFcfsMint(minterAddress: Address): Promise<FcfsSignature> {
-		// Match contract's abi.encodePacked(msg.sender)
-		const messageHash = keccak256(encodePacked(["address"], [minterAddress]));
-
-		// Sign with EIP-191 prefix (toEthSignedMessageHash equivalent)
-		const signature = await this.account.signMessage({
-			message: { raw: toBytes(messageHash) },
-		});
-
-		return {
+			phase,
 			address: minterAddress,
 			signature,
 		};

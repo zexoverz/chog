@@ -26,8 +26,8 @@ export interface EligibilityResult {
 export interface SignatureResult {
 	success: boolean;
 	signature?: Hex;
-	amount?: number;
 	maxAllowed?: number;
+	contractPhase?: string;
 	price?: number;
 	error?: string;
 }
@@ -255,6 +255,12 @@ export class MintService {
 
 	/**
 	 * Generate mint signature for an address
+	 *
+	 * Phase mapping (backend phase → contract phase string):
+	 * - Backend STARLIST → contract "PRESALE" (uses presaleMint on-chain)
+	 * - Backend FCFS → contract "STARLIST" (uses starlistMint on-chain)
+	 *
+	 * Contract's fcfsMint does not require a signature.
 	 */
 	async generateSignature(
 		address: Address,
@@ -295,29 +301,35 @@ export class MintService {
 				};
 			}
 
-			const result = await this.signer.signPresaleMint(
+			// Backend STARLIST → contract presaleMint → phase string "PRESALE"
+			const result = await this.signer.signMint(
 				normalizedAddress,
-				amount,
 				entry.maxAllocation,
+				"PRESALE",
 			);
 
 			return {
 				success: true,
 				signature: result.signature,
-				amount,
 				maxAllowed: entry.maxAllocation,
+				contractPhase: "PRESALE",
 				price: MINT_CONFIG.PRICES.STARLIST,
 			};
 		}
 
 		if (phase === MINT_CONFIG.PHASES.FCFS) {
-			const result = await this.signer.signFcfsMint(normalizedAddress);
+			// Backend FCFS → contract starlistMint → phase string "STARLIST"
+			const result = await this.signer.signMint(
+				normalizedAddress,
+				MINT_CONFIG.MAX_PER_ADDRESS_FCFS,
+				"STARLIST",
+			);
 
 			return {
 				success: true,
 				signature: result.signature,
-				amount,
 				maxAllowed: MINT_CONFIG.MAX_PER_ADDRESS_FCFS,
+				contractPhase: "STARLIST",
 				price: MINT_CONFIG.PRICES.FCFS,
 			};
 		}
