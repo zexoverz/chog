@@ -25,10 +25,9 @@ export default buildModule("LilStarDeployModule", (m) => {
   // Parameters
   // ============
 
-  // BlindBox params (matching mint-plan.md)
+  // BlindBox params
   const maxSupply = m.getParameter("maxSupply", 6000n);
-  const mintableSupply = m.getParameter("mintableSupply", 3756n); // Excludes reserved
-  const withdrawAddress = m.getParameter<string>("withdrawAddress");
+  const withdrawAddress = m.getParameter("withdrawAddress", m.getAccount(0));
 
   // LilStar params
   const lilStarName = m.getParameter("lilStarName", "LilStar");
@@ -39,9 +38,8 @@ export default buildModule("LilStarDeployModule", (m) => {
   // ============
 
   // 1. Deploy BlindBox (the mintable mystery box NFT)
-  const blindBox = m.contract("BlindBox", [
+  const blindBox = m.contract("LilStarBlindBox", [
     maxSupply,
-    mintableSupply,
     withdrawAddress,
   ]);
 
@@ -53,7 +51,7 @@ export default buildModule("LilStarDeployModule", (m) => {
   ]);
 
   // 3. Deploy LilStarSBT (soulbound utility tokens)
-  const lilStarSBT = m.contract("LilStarSBT", []);
+  const lilStarSBT = m.contract("LilStarRewards", []);
 
   // ============
   // Link Contracts

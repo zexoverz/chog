@@ -24,7 +24,7 @@ error InsufficientBalance();
  * - Soulbound (non-transferable)
  * - Burnable (redeemed on website for IRL perks)
  */
-contract LilStarSBT is ERC1155, Ownable {
+contract LilStarRewards is ERC1155, Ownable {
 
     // Token IDs
     uint256 public constant DISCOUNT_5 = 1;

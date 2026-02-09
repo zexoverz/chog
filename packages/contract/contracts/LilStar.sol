@@ -22,7 +22,7 @@ interface IRegistry {
     function isAllowedOperator(address operator) external view returns (bool);
 }
 
-interface ILilStarSBT {
+interface ILilStarRewards {
     function mintRandomSBT(address to, uint256 randomSeed) external returns (uint256 tokenId, uint256 sbtType);
 }
 
@@ -114,7 +114,7 @@ contract LilStar is ERC2981, ERC721, Ownable, OperatorFilterer {
             // Mint SBT if contract is set
             if (sbtContract != address(0)) {
                 uint256 randomSeed = _getRandomNum(blindBoxId + tokenId);
-                (uint256 sbtTokenId, ) = ILilStarSBT(sbtContract).mintRandomSBT(to, randomSeed);
+                (uint256 sbtTokenId, ) = ILilStarRewards(sbtContract).mintRandomSBT(to, randomSeed);
                 emit SBTAwarded(to, sbtTokenId, uint8(sbtTokenId));
             }
 

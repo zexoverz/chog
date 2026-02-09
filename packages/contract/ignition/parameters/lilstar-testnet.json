@@ -1,8 +1,6 @@
 {
   "LilStarDeployModule": {
     "maxSupply": 6000,
-    "totalPresaleAndAuctionSupply": 3756,
-    "withdrawAddress": "0x0000000000000000000000000000000000000000",
     "lilStarName": "LilStar",
     "lilStarSymbol": "LSTAR"
   }

@@ -20,9 +20,8 @@ describe("LilStar", async function () {
   }
 
   async function deployBlindBox() {
-    const blindBox = await viem.deployContract("BlindBox", [
+    const blindBox = await viem.deployContract("LilStarBlindBox", [
       BigInt(MAX_SUPPLY),
-      3756n,
       getAddress(deployer.account.address),
     ]);
     return blindBox;

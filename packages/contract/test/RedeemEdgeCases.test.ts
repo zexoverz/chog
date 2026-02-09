@@ -9,12 +9,10 @@ describe("Redeem BlindBox Edge Cases", async function () {
   const [deployer, user1, user2, withdrawAddress] = await viem.getWalletClients();
 
   const MAX_SUPPLY = 6000n;
-  const MINTABLE_SUPPLY = 3756n;
 
   async function deployAll() {
-    const blindBox = await viem.deployContract("BlindBox", [
+    const blindBox = await viem.deployContract("LilStarBlindBox", [
       MAX_SUPPLY,
-      MINTABLE_SUPPLY,
       getAddress(withdrawAddress.account.address),
     ]);
 
@@ -24,7 +22,7 @@ describe("Redeem BlindBox Edge Cases", async function () {
       Number(MAX_SUPPLY),
     ]);
 
-    const sbt = await viem.deployContract("LilStarSBT", []);
+    const sbt = await viem.deployContract("LilStarRewards", []);
 
     return { blindBox, lilStar, sbt };
   }
@@ -150,9 +148,8 @@ describe("Redeem BlindBox Edge Cases", async function () {
     it("Should revert if all LilStar tokens are minted (NoMoreTokenIds)", async () => {
       // This would require minting all 6000 - too expensive to test fully
       // But we can test with a small supply LilStar
-      const blindBox = await viem.deployContract("BlindBox", [
+      const blindBox = await viem.deployContract("LilStarBlindBox", [
         10n, // MAX_SUPPLY = 10
-        5n,  // MINTABLE_SUPPLY = 5
         getAddress(withdrawAddress.account.address),
       ]);
 
@@ -162,7 +159,7 @@ describe("Redeem BlindBox Edge Cases", async function () {
         5, // Only 5 tokens available
       ]);
 
-      const sbt = await viem.deployContract("LilStarSBT", []);
+      const sbt = await viem.deployContract("LilStarRewards", []);
 
       // Wire up
       await blindBox.write.setLilStarContract([lilStar.address]);

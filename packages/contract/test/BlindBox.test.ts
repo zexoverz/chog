@@ -10,12 +10,10 @@ describe("BlindBox", async function () {
   const [deployer, user1, user2, withdrawAddress] = await viem.getWalletClients();
 
   const MAX_SUPPLY = 6000n;
-  const TOTAL_PRESALE_AND_AUCTION_SUPPLY = 3756n;
 
   async function deployBlindBox() {
-    const blindBox = await viem.deployContract("BlindBox", [
+    const blindBox = await viem.deployContract("LilStarBlindBox", [
       MAX_SUPPLY,
-      TOTAL_PRESALE_AND_AUCTION_SUPPLY,
       getAddress(withdrawAddress.account.address),
     ]);
     return blindBox;
@@ -35,7 +33,6 @@ describe("BlindBox", async function () {
       const blindBox = await deployBlindBox();
 
       assert.equal(await blindBox.read.MAX_SUPPLY(), MAX_SUPPLY);
-      assert.equal(await blindBox.read.TOTAL_PRESALE_AND_AUCTION_SUPPLY(), TOTAL_PRESALE_AND_AUCTION_SUPPLY);
       assert.equal(await blindBox.read.WITHDRAW_ADDRESS(), getAddress(withdrawAddress.account.address));
       assert.equal(await blindBox.read.name(), "BlindBox");
       assert.equal(await blindBox.read.symbol(), "BBOX");
@@ -51,15 +48,12 @@ describe("BlindBox", async function () {
       assert.equal(await blindBox.read.initialTransferLockOn(), true);
     });
 
-    it("Should revert if presale supply >= max supply", async () => {
-      await assert.rejects(
-        viem.deployContract("BlindBox", [
-          1000n,
-          1000n, // equal to max supply
-          getAddress(withdrawAddress.account.address),
-        ]),
-        /InvalidContractSetup/
-      );
+    it("Should deploy with any max supply", async () => {
+      const blindBox = await viem.deployContract("LilStarBlindBox", [
+        1000n,
+        getAddress(withdrawAddress.account.address),
+      ]);
+      assert.equal(await blindBox.read.MAX_SUPPLY(), 1000n);
     });
   });
 
@@ -146,62 +140,6 @@ describe("BlindBox", async function () {
           [10n, 20n], // mismatched length
         ]),
         /MismatchedArrays/
-      );
-    });
-  });
-
-  describe("Allowlist Mint", () => {
-    it("Should allow allowlisted users to mint", async () => {
-      const blindBox = await deployBlindBox();
-      const mintPrice = parseEther("0.01");
-
-      // Set allowlist allocation and price
-      await blindBox.write.setAllowlistMintsAlloc([
-        [getAddress(user1.account.address)],
-        [3n],
-      ]);
-      await blindBox.write.setAllowlistMintPrice([mintPrice]);
-
-      // Break transfer lock for testing
-      await blindBox.write.breakTransferLock();
-
-      // Mint
-      await blindBox.write.allowlistMint([], {
-        account: user1.account,
-        value: mintPrice * 3n,
-      });
-
-      assert.equal(await blindBox.read.balanceOf([getAddress(user1.account.address)]), 3n);
-    });
-
-    it("Should revert if allowlist mint not open", async () => {
-      const blindBox = await deployBlindBox();
-
-      await assert.rejects(
-        blindBox.write.allowlistMint([], {
-          account: user1.account,
-          value: parseEther("0.1"),
-        }),
-        /AllowlistMintNotOpen/
-      );
-    });
-
-    it("Should revert if insufficient funds", async () => {
-      const blindBox = await deployBlindBox();
-      const mintPrice = parseEther("0.01");
-
-      await blindBox.write.setAllowlistMintsAlloc([
-        [getAddress(user1.account.address)],
-        [3n],
-      ]);
-      await blindBox.write.setAllowlistMintPrice([mintPrice]);
-
-      await assert.rejects(
-        blindBox.write.allowlistMint([], {
-          account: user1.account,
-          value: mintPrice, // only enough for 1, but allocated 3
-        }),
-        /InsufficientFunds/
       );
     });
   });
@@ -305,13 +243,10 @@ describe("BlindBox", async function () {
       const blindBox = await deployBlindBox();
       const mintPrice = parseEther("0.01");
 
-      // Setup and mint to get funds in contract
-      await blindBox.write.setAllowlistMintsAlloc([
-        [getAddress(user1.account.address)],
-        [1n],
-      ]);
-      await blindBox.write.setAllowlistMintPrice([mintPrice]);
-      await blindBox.write.allowlistMint([], {
+      // Setup FCFS mint to get funds in contract
+      await blindBox.write.setPhase([3]); // FCFS
+      await blindBox.write.setPrices([0n, 0n, mintPrice]);
+      await blindBox.write.fcfsMint([1], {
         account: user1.account,
         value: mintPrice,
       });

@@ -2,14 +2,14 @@
 pragma solidity ^0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {BlindBox} from "./BlindBox.sol";
+import {LilStarBlindBox} from "./LilStarBlindBox.sol";
 import {LilStar, BlindBoxAddressNotSet, RedeemBlindBoxNotOpen, InvalidRedeemer} from "./LilStar.sol";
-import {LilStarSBT} from "./LilStarSBT.sol";
+import {LilStarRewards} from "./LilStarRewards.sol";
 
 contract LilStarTest is Test {
-    BlindBox public blindBox;
+    LilStarBlindBox public blindBox;
     LilStar public lilStar;
-    LilStarSBT public sbt;
+    LilStarRewards public sbt;
 
     address public owner = address(this);
     address public withdrawAddress = address(0x99);
@@ -17,17 +17,15 @@ contract LilStarTest is Test {
     address public bob = address(0x3);
 
     uint16 public constant MAX_SUPPLY = 6000;
-    uint256 public constant MINTABLE_SUPPLY = 3756;
 
     function setUp() public {
-        blindBox = new BlindBox(
+        blindBox = new LilStarBlindBox(
             MAX_SUPPLY,
-            MINTABLE_SUPPLY,
             payable(withdrawAddress)
         );
 
         lilStar = new LilStar("LilStar", "LSTAR", MAX_SUPPLY);
-        sbt = new LilStarSBT();
+        sbt = new LilStarRewards();
 
         // Link contracts
         blindBox.setLilStarContract(address(lilStar));
@@ -236,7 +234,7 @@ contract LilStarTest is Test {
     function test_RedeemWithoutSBTContract() public {
         // Create new LilStar without SBT
         LilStar lilStarNoSBT = new LilStar("NoSBT", "NOSBT", MAX_SUPPLY);
-        BlindBox blindBoxNoSBT = new BlindBox(MAX_SUPPLY, MINTABLE_SUPPLY, payable(withdrawAddress));
+        LilStarBlindBox blindBoxNoSBT = new LilStarBlindBox(MAX_SUPPLY, payable(withdrawAddress));
 
         blindBoxNoSBT.setLilStarContract(address(lilStarNoSBT));
         lilStarNoSBT.setBlindBoxAddress(address(blindBoxNoSBT));
@@ -413,7 +411,7 @@ contract LilStarTest is Test {
 
     function test_RevertNoMoreTokenIds() public {
         // Deploy with tiny supply
-        BlindBox tinyBlindBox = new BlindBox(3, 2, payable(withdrawAddress));
+        LilStarBlindBox tinyBlindBox = new LilStarBlindBox(3, payable(withdrawAddress));
         LilStar tinyLilStar = new LilStar("Tiny", "TINY", 3);
 
         tinyBlindBox.setLilStarContract(address(tinyLilStar));

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(done)",
       "Bash(grep:*)",
-      "Bash(npx hardhat verify:*)"
+      "Bash(npx hardhat verify:*)",
+      "Bash(curl:*)",
+      "Bash(npx hardhat test:*)"
     ]
   }
 }

@@ -8,9 +8,9 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
  * - Token ID 2: 10% Lifetime Discount (2500 supply)
  * - Token ID 3: Free IRL BlindBox (1000 supply)
  */
-export default buildModule("LilStarSBTModule", (m) => {
+export default buildModule("LilStarRewardsModule", (m) => {
   // Deploy LilStarSBT
-  const lilStarSBT = m.contract("LilStarSBT", []);
+  const lilStarSBT = m.contract("LilStarRewards", []);
 
   return { lilStarSBT };
 });

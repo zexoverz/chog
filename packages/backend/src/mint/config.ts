@@ -1,17 +1,8 @@
 // Mint configuration based on mint-plan.md
 
 export const MINT_CONFIG = {
-	// Total supply
+	// Total supply (airdrop first while CLOSED, remaining available for public mint)
 	TOTAL_SUPPLY: 6000,
-
-	// Non-mintable / Reserved supply
-	PRESALE_ALLOCATION: 1800, // Reserved for presale investors
-	MINTHUB_COMPANY: 222,
-	TEAM: 222,
-	TOTAL_RESERVED: 2244, // 1800 + 222 + 222
-
-	// Mintable supply
-	TOTAL_MINTABLE: 3756, // 6000 - 2244
 
 	// Pricing (in USD, converted to native token at mint time)
 	PRICES: {

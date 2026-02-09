@@ -5,9 +5,9 @@ export const CONTRACTS = {
     wmon: "0x6292801F2598D7a24FA99265685bcCD4DcFB0Fc2" as Address,
     collectible: "0xF5361Ff6f59103db06BA5758DFE105a70da253b3" as Address,
     nftSwap: "0x4966ef314ED51dc52Ba4e210BC766D953f9cAb1F" as Address,
-    blindBox: "0xEaB0Cb3bF45F7D8b27dFbb7E1390Bf4a10510dBF" as Address,
-    lilStar: "0x1c9f5B6e8C9e358C4E583B2c2F6F7e9C75d577B4" as Address,
-    lilStarSBT: "0x285c21Fd7f7fBd5501949cf1398502699f018172" as Address,
+    blindBox: "0x19c1Fa41821dA8Fb08B879b5185a2bB09e65fBB0" as Address,
+    lilStar: "0xF9e709Ad3e63540ba2E92F7051dA64f7f2D02990" as Address,
+    lilStarSBT: "0x73cdEAFE62Fe3c7b1B51cb1621443B52FC82a613" as Address,
   },
 } as const;
 

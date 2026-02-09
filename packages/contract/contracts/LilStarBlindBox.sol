@@ -11,7 +11,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 error ChunkAlreadyProcessed();
 error MismatchedArrays();
-error MaxMintableSupplyReached();
 error RedeemBlindBoxNotOpen();
 error LilStarContractNotSet();
 error ForceRedeemBlindBoxOwnerMismatch();
@@ -24,7 +23,6 @@ error InvalidSignature();
 error OverMaxSupply();
 error PhaseNotOpen();
 error ExceedsMaxPerWallet();
-error InvalidContractSetup();
 
 interface ILilStarRedeemer {
     function redeemBlindBoxes(address to, uint256[] calldata blindBoxIds)
@@ -45,7 +43,7 @@ interface IRegistry {
  * - Starlist (WL): $35 (signature required)
  * - FCFS (Public): $40 (open to all)
  */
-contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
+contract LilStarBlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -64,8 +62,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
 
     // Supply tracking
     uint256 public immutable MAX_SUPPLY;
-    uint256 public immutable MINTABLE_SUPPLY; // 3,756 per plan
-    uint16 public totalMintableMinted;
 
     // Mint phases: 0=Closed, 1=Presale, 2=Starlist, 3=FCFS
     enum MintPhase { CLOSED, PRESALE, STARLIST, FCFS }
@@ -102,15 +98,10 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
 
     constructor(
         uint256 _maxSupply,
-        uint256 _mintableSupply,
         address payable _withdrawAddress
     ) ERC721A("BlindBox", "BBOX") Ownable(msg.sender) {
         MAX_SUPPLY = _maxSupply;
-        MINTABLE_SUPPLY = _mintableSupply;
         WITHDRAW_ADDRESS = _withdrawAddress;
-
-        if (_mintableSupply >= _maxSupply)
-            revert InvalidContractSetup();
 
         _registerForOperatorFiltering();
         operatorFilteringEnabled = true;
@@ -137,8 +128,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (alreadyMinted + amount > maxAllowed) revert ExceedsMaxPerWallet();
         if (alreadyMinted + amount > maxPerWalletPresale) revert ExceedsMaxPerWallet();
 
-        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
-            revert MaxMintableSupplyReached();
         if (_totalMinted() + amount > MAX_SUPPLY)
             revert OverMaxSupply();
 
@@ -149,7 +138,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (msg.value < totalCost) revert InsufficientFunds();
 
         mintedInPresale[msg.sender] = alreadyMinted + amount;
-        totalMintableMinted += amount;
 
         _mint(msg.sender, amount);
         emit Minted(msg.sender, uint8(MintPhase.PRESALE), amount);
@@ -172,8 +160,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (alreadyMinted + amount > maxAllowed) revert ExceedsMaxPerWallet();
         if (alreadyMinted + amount > maxPerWalletStarlist) revert ExceedsMaxPerWallet();
 
-        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
-            revert MaxMintableSupplyReached();
         if (_totalMinted() + amount > MAX_SUPPLY)
             revert OverMaxSupply();
 
@@ -184,7 +170,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (msg.value < totalCost) revert InsufficientFunds();
 
         mintedInStarlist[msg.sender] = alreadyMinted + amount;
-        totalMintableMinted += amount;
 
         _mint(msg.sender, amount);
         emit Minted(msg.sender, uint8(MintPhase.STARLIST), amount);
@@ -200,8 +185,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         uint16 alreadyMinted = mintedInFcfs[msg.sender];
         if (alreadyMinted + amount > maxPerWalletFcfs) revert ExceedsMaxPerWallet();
 
-        if (totalMintableMinted + amount > MINTABLE_SUPPLY)
-            revert MaxMintableSupplyReached();
         if (_totalMinted() + amount > MAX_SUPPLY)
             revert OverMaxSupply();
 
@@ -209,7 +192,6 @@ contract BlindBox is ERC2981, Ownable, OperatorFilterer, ERC721A {
         if (msg.value < totalCost) revert InsufficientFunds();
 
         mintedInFcfs[msg.sender] = alreadyMinted + amount;
-        totalMintableMinted += amount;
 
         _mint(msg.sender, amount);
         emit Minted(msg.sender, uint8(MintPhase.FCFS), amount);

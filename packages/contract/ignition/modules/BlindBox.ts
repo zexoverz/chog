@@ -10,16 +10,14 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
  * - Starlist: $35 (signature required)
  * - FCFS: $40 (open to public)
  */
-export default buildModule("BlindBoxModule", (m) => {
+export default buildModule("LilStarBlindBoxModule", (m) => {
   // Parameters
   const maxSupply = m.getParameter("maxSupply", 6000n);
-  const mintableSupply = m.getParameter("mintableSupply", 3756n);
   const withdrawAddress = m.getParameter<string>("withdrawAddress");
 
   // Deploy BlindBox
-  const blindBox = m.contract("BlindBox", [
+  const blindBox = m.contract("LilStarBlindBox", [
     maxSupply,
-    mintableSupply,
     withdrawAddress,
   ]);
 

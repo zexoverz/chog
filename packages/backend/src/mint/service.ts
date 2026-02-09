@@ -11,7 +11,7 @@ const blindBoxPhaseAbi = [
 		inputs: [],
 		name: "currentPhase",
 		outputs: [
-			{ internalType: "enum BlindBox.MintPhase", name: "", type: "uint8" },
+			{ internalType: "enum LilStarBlindBox.MintPhase", name: "", type: "uint8" },
 		],
 		stateMutability: "view",
 		type: "function",
@@ -33,7 +33,7 @@ const ONCHAIN_PHASE_MAP: Record<number, MintPhase> = {
 export interface MintStatus {
 	phase: MintPhase;
 	totalSupply: number;
-	totalMintable: number;
+
 	starlistPrice: number;
 	fcfsPrice: number;
 	maxPerAddressStarlist: number;
@@ -195,7 +195,7 @@ export class MintService {
 		return {
 			phase: this.getCurrentPhase(),
 			totalSupply: MINT_CONFIG.TOTAL_SUPPLY,
-			totalMintable: MINT_CONFIG.TOTAL_MINTABLE,
+
 			starlistPrice: MINT_CONFIG.PRICES.STARLIST,
 			fcfsPrice: MINT_CONFIG.PRICES.FCFS,
 			maxPerAddressStarlist: MINT_CONFIG.MAX_PER_ADDRESS_STARLIST,

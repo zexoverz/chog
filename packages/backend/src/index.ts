@@ -36,7 +36,7 @@ const mintService = new MintService({
 		"0x0000000000000000000000000000000000000000000000000000000000000001",
 	blindBoxAddress:
 		(process.env.BLINDBOX_ADDRESS as Address) ||
-		"0xEaB0Cb3bF45F7D8b27dFbb7E1390Bf4a10510dBF",
+		"0x19c1Fa41821dA8Fb08B879b5185a2bB09e65fBB0",
 	adminAddresses: process.env.ADMIN_ADDRESSES
 		? (process.env.ADMIN_ADDRESSES.split(",") as Address[])
 		: [],
@@ -282,8 +282,10 @@ app.get("/blindbox/metadata/:tokenId", (c) => {
 		description:
 			"A mysterious box containing a LilStar NFT. Redeem to reveal your unique character!",
 		image:
-			"https://static.vecteezy.com/system/resources/thumbnails/006/847/476/small/mystery-gift-box-with-cardboard-box-open-inside-with-a-question-mark-lucky-gift-or-other-surprise-in-flat-cartoon-style-illustration-vector.jpg",
-		external_url: "https://lilchogstars.com",
+			"https://mint.lilstars.xyz/blindbox.png",
+		animation_url:
+			"https://mint.lilstars.xyz/blindbox-mint.mp4",
+		external_url: "https://lilstars.xyz",
 		attributes: [
 			{
 				trait_type: "Type",
@@ -330,8 +332,8 @@ app.get("/lilstar/metadata/:tokenId", async (c) => {
 	return c.json({
 		name: `LilStar #${tokenId}`,
 		description: `A unique LilStar character. ${rarity === "legendary" ? "This is a LEGENDARY edition!" : ""}`,
-		image: `https://testnet-api.lilchogstars.com/lilstar/image/${tokenId}`,
-		external_url: "https://lilchogstars.com",
+		image: `https://api.lilstars.xyz/lilstar/image/${tokenId}`,
+		external_url: "https://lilstars.xyz",
 		attributes,
 	});
 });
@@ -419,7 +421,7 @@ app.get("/sbt/metadata/:tokenId", (c) => {
 		name: metadata.name,
 		description: metadata.description,
 		image: metadata.image,
-		external_url: "https://lilchogstars.com/redeem",
+		external_url: "https://lilstars.xyz/redeem",
 		attributes: metadata.attributes,
 	});
 });

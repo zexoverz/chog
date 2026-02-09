@@ -2,13 +2,13 @@
 pragma solidity ^0.8.18;
 
 import {Test} from "forge-std/Test.sol";
-import {LilStarSBT, NotTransferable, NotLilStarContract, NoMoreSBTsAvailable, InsufficientBalance} from "./LilStarSBT.sol";
-import {BlindBox} from "./BlindBox.sol";
+import {LilStarRewards, NotTransferable, NotLilStarContract, NoMoreSBTsAvailable, InsufficientBalance} from "./LilStarRewards.sol";
+import {LilStarBlindBox} from "./LilStarBlindBox.sol";
 import {LilStar} from "./LilStar.sol";
 
-contract LilStarSBTTest is Test {
-    LilStarSBT public sbt;
-    BlindBox public blindBox;
+contract LilStarRewardsTest is Test {
+    LilStarRewards public sbt;
+    LilStarBlindBox public blindBox;
     LilStar public lilStar;
 
     address public owner = address(this);
@@ -17,13 +17,12 @@ contract LilStarSBTTest is Test {
     address public bob = address(0x3);
 
     uint256 public constant MAX_SUPPLY = 6000;
-    uint256 public constant MINTABLE_SUPPLY = 3756;
 
     function setUp() public {
         // Deploy contracts
-        blindBox = new BlindBox(MAX_SUPPLY, MINTABLE_SUPPLY, payable(withdrawAddress));
+        blindBox = new LilStarBlindBox(MAX_SUPPLY, payable(withdrawAddress));
         lilStar = new LilStar("LilStar", "LSTAR", uint16(MAX_SUPPLY));
-        sbt = new LilStarSBT();
+        sbt = new LilStarRewards();
 
         // Link contracts
         blindBox.setLilStarContract(address(lilStar));
@@ -203,7 +202,7 @@ contract LilStarSBTTest is Test {
         uint256 tokenId = _getAliceSBTType();
 
         vm.expectEmit(true, true, false, true);
-        emit LilStarSBT.SBTBurned(alice, tokenId, 1);
+        emit LilStarRewards.SBTBurned(alice, tokenId, 1);
 
         vm.prank(alice);
         sbt.burn(tokenId, 1);
@@ -269,7 +268,7 @@ contract LilStarSBTTest is Test {
     // ============
 
     function test_SetLilStarContract() public {
-        LilStarSBT newSbt = new LilStarSBT();
+        LilStarRewards newSbt = new LilStarRewards();
         newSbt.setLilStarContract(address(0x123));
         assertEq(newSbt.lilStarContract(), address(0x123));
     }
