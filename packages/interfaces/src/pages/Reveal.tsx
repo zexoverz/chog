@@ -80,6 +80,8 @@ export function Reveal() {
 
   const isRedeemOpen = redeemInfo?.[0] ?? false;
 
+  console.log(redeemInfo, '--ingfo')
+
   // Redeem transaction
   const { writeContract, data: hash, isPending, error, reset } = useWriteContract();
   const { isLoading: isConfirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash });
